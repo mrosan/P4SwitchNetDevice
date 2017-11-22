@@ -1,0 +1,48 @@
+# -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+# def options(opt):
+#     pass
+
+#def configure(conf):
+#   conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
+#    conf.env.DFLAGS='-fPIC'
+#    conf.env.append_value("CPPFLAGS", ["-fPIC"])
+
+def build(bld):
+    #module = bld.create_ns3_module('p4', ['core'])
+    module = bld.create_ns3_module('p4', ['internet','applications','csma','network'])
+    module.source = [
+        'model/p4-switch-net-device.cc',
+        'helper/p4-switch-helper.cc',
+        'model/p4-interface.c',
+        'model/actions.c',
+        'model/controlplane.c',
+        'model/dataplane.c',
+        'model/parser.c',
+        'model/tables.c',
+        ]
+    module.cppflags = ['-fPIC']
+
+    module_test = bld.create_ns3_module_test_library('p4')
+    module_test.source = [
+        'test/p4-test-suite.cc',
+        ]
+
+    headers = bld(features='ns3header')
+    headers.module = 'p4'
+    headers.source = [
+        'model/p4-switch-net-device.h',
+        'model/p4-interface.h',
+        'model/p4-interface-dependencies.h',
+        'helper/p4-switch-helper.h',
+        'model/actions.h',
+        'model/data_plane_data.h',
+        'model/parser.h',
+        ]
+    #headers.cppflags = ['-fPIC']
+
+    if bld.env.ENABLE_EXAMPLES:
+        bld.recurse('examples')
+
+    # bld.ns3_python_bindings()
+
