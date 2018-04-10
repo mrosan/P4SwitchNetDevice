@@ -6,8 +6,8 @@
  #define NB_TABLES 2// sugar@19
 
  enum table_names {// sugar@21
- TABLE_ipv4_fib_lpm,// sugar@23
- TABLE_sendout,// sugar@23
+ TABLE_smac,// sugar@23
+ TABLE_dmac,// sugar@23
  TABLE_// sugar@24
  };// sugar@25
 

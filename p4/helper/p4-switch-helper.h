@@ -20,11 +20,12 @@ public:
 
   /**
    * This method creates an ns3::P4SwitchNetDevice, adds the device
-   * to the node and attaches the given NetDevices as ports of the
-   * switch.
+   * to the node and attaches the given NetDevices as ports of the switch.
    *
-   * \param node The node to install the device in
-   * \param c Container of NetDevices to add as switch ports
+   * \param node The node to install the device in.
+   * \param c Container of NetDevices to add as switch ports.
+   * \param *init_tables_callback Pointer to the function that will be called after table creation.
+   * \param *p4_msg_digest_callback Pointer to the function that functions as a controller for the switch.
    * \returns A container holding the added net device.
    */
    NetDeviceContainer Install ( Ptr<Node> node, 

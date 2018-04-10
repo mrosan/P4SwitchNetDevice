@@ -77,12 +77,49 @@ public:
    */
   void ReceiveFromDevice (Ptr<NetDevice> netdev, Ptr<const Packet> packet, uint16_t protocol, const Address& src, const Address& dst, PacketType packetType);
 
+
+  /**
+   * \brief Set callback functions passed down from the simulation file.
+   *
+   * This method sets two function pointers, one used for initializing
+   * the table, the other used as a controller for the switch.
+   *
+   * \return 0 if everything's ok.
+   */
   int SetCallbackFunctions( int (*init_tables_callback)(lookup_table_t**), int (*p4_msg_digest_callback)(lookup_table_t** t, char* name, int receiver, struct type_field_list* digest_field_list) );
 
+
+  /**
+   * \brief Process the packet.
+   *
+   * This method initializes the P4 switch, sends the Packet to it to be proccessed,
+   * extracts the egress port belonging to the Packet, then forwards the Packet
+   * through the appropriate ports.
+   *
+   * \param packet The Packet itself.
+   * \param src The source address of the Packet.
+   * \param dst The destination address of the Packet.
+   * \param inport The port number through which the Packet has arrived.
+   * \param protocol The protocol defining the Packet.
+   * \param mtu Maximum transmission unit.
+   * \return 0 if everything's ok, otherwise an error number.
+   */
   int HandlePacket (Ptr<const Packet> packet, const Address& src, const Address& dst, int inport, uint16_t protocol, uint16_t mtu);
   
   
-  
+  /**
+   * \brief Convert the packet.
+   *
+   * This method converts the Packet into a bytestring, re-adds the ethernet
+   * header, and puts it into the P4 switch's packet descriptor structure.
+   *
+   * \param pd The P4 switch's packet format.
+   * \param constPacket The Packet itself.
+   * \param src The source address of the Packet.
+   * \param dst The destination address of the Packet.
+   * \param protocol The protocol defining the Packet.
+   * \param mtu Maximum transmission unit.
+   */
   void BufferFromPacket (packet_descriptor_t* pd, Ptr<const Packet> constPacket, const Address& src, const Address& dst, uint16_t protocol, uint16_t mtu);
   
   

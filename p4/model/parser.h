@@ -4,13 +4,11 @@
  #define MODIFIED 1// sugar@98
 
  typedef struct parsed_fields_s {// sugar@100
- uint32_t field_instance_ipv4_ttl;// sugar@104
- uint8_t attr_field_instance_ipv4_ttl;// sugar@105
  } parsed_fields_t;// sugar@106
  
- #define HEADER_INSTANCE_COUNT 3// sugar@108
+ #define HEADER_INSTANCE_COUNT 2// sugar@108
  #define HEADER_STACK_COUNT 0// sugar@109
- #define FIELD_INSTANCE_COUNT 21// sugar@110
+ #define FIELD_INSTANCE_COUNT 11// sugar@110
  
  enum header_stack_e {
   header_stack_
@@ -19,8 +17,7 @@
 // sugar@112
  enum header_instance_e {
   header_instance_standard_metadata,
-  header_instance_ethernet,
-  header_instance_ipv4
+  header_instance_ethernet
 };
 
 // sugar@113
@@ -35,17 +32,7 @@
   field_instance_standard_metadata__padding,
   field_instance_ethernet_dstAddr,
   field_instance_ethernet_srcAddr,
-  field_instance_ethernet_etherType,
-  field_instance_ipv4_versionIhl,
-  field_instance_ipv4_diffserv,
-  field_instance_ipv4_totalLen,
-  field_instance_ipv4_identification,
-  field_instance_ipv4_fragOffset,
-  field_instance_ipv4_ttl,
-  field_instance_ipv4_protocol,
-  field_instance_ipv4_hdrChecksum,
-  field_instance_ipv4_srcAddr,
-  field_instance_ipv4_dstAddr
+  field_instance_ethernet_etherType
 };
 
 // sugar@114
@@ -53,22 +40,19 @@
  typedef enum field_instance_e field_instance_t;// sugar@116
  static const int header_instance_byte_width[HEADER_INSTANCE_COUNT] = {
   20 /* header_instance_standard_metadata */,
-  14 /* header_instance_ethernet */,
-  20 /* header_instance_ipv4 */
+  14 /* header_instance_ethernet */
 };
 
 // sugar@117
  static const int header_instance_is_metadata[HEADER_INSTANCE_COUNT] = {
   1 /* header_instance_standard_metadata */,
-  0 /* header_instance_ethernet */,
-  0 /* header_instance_ipv4 */
+  0 /* header_instance_ethernet */
 };
 
 // sugar@118
  static const int header_instance_var_width_field[HEADER_INSTANCE_COUNT] = {
   -1 /* fixed-width header */ /* header_instance_standard_metadata */,
-  -1 /* fixed-width header */ /* header_instance_ethernet */,
-  -1 /* fixed-width header */ /* header_instance_ipv4 */
+  -1 /* fixed-width header */ /* header_instance_ethernet */
 };
 
 // sugar@119
@@ -83,17 +67,7 @@
   5 /* field_instance_standard_metadata__padding */,
   48 /* field_instance_ethernet_dstAddr */,
   48 /* field_instance_ethernet_srcAddr */,
-  16 /* field_instance_ethernet_etherType */,
-  8 /* field_instance_ipv4_versionIhl */,
-  8 /* field_instance_ipv4_diffserv */,
-  16 /* field_instance_ipv4_totalLen */,
-  16 /* field_instance_ipv4_identification */,
-  16 /* field_instance_ipv4_fragOffset */,
-  8 /* field_instance_ipv4_ttl */,
-  8 /* field_instance_ipv4_protocol */,
-  16 /* field_instance_ipv4_hdrChecksum */,
-  32 /* field_instance_ipv4_srcAddr */,
-  32 /* field_instance_ipv4_dstAddr */
+  16 /* field_instance_ethernet_etherType */
 };
 
 // sugar@120
@@ -108,17 +82,7 @@
   3 /* field_instance_standard_metadata__padding */,
   0 /* field_instance_ethernet_dstAddr */,
   0 /* field_instance_ethernet_srcAddr */,
-  0 /* field_instance_ethernet_etherType */,
-  0 /* field_instance_ipv4_versionIhl */,
-  0 /* field_instance_ipv4_diffserv */,
-  0 /* field_instance_ipv4_totalLen */,
-  0 /* field_instance_ipv4_identification */,
-  0 /* field_instance_ipv4_fragOffset */,
-  0 /* field_instance_ipv4_ttl */,
-  0 /* field_instance_ipv4_protocol */,
-  0 /* field_instance_ipv4_hdrChecksum */,
-  0 /* field_instance_ipv4_srcAddr */,
-  0 /* field_instance_ipv4_dstAddr */
+  0 /* field_instance_ethernet_etherType */
 };
 
 // sugar@121
@@ -133,17 +97,7 @@
   19 /* field_instance_standard_metadata__padding */,
   0 /* field_instance_ethernet_dstAddr */,
   6 /* field_instance_ethernet_srcAddr */,
-  12 /* field_instance_ethernet_etherType */,
-  0 /* field_instance_ipv4_versionIhl */,
-  1 /* field_instance_ipv4_diffserv */,
-  2 /* field_instance_ipv4_totalLen */,
-  4 /* field_instance_ipv4_identification */,
-  6 /* field_instance_ipv4_fragOffset */,
-  8 /* field_instance_ipv4_ttl */,
-  9 /* field_instance_ipv4_protocol */,
-  10 /* field_instance_ipv4_hdrChecksum */,
-  12 /* field_instance_ipv4_srcAddr */,
-  16 /* field_instance_ipv4_dstAddr */
+  12 /* field_instance_ethernet_etherType */
 };
 
 // sugar@122
@@ -158,17 +112,7 @@
   0x1f /* field_instance_standard_metadata__padding */,
   0x0 /* field_instance_ethernet_dstAddr */,
   0x0 /* field_instance_ethernet_srcAddr */,
-  0xffff /* field_instance_ethernet_etherType */,
-  0xff /* field_instance_ipv4_versionIhl */,
-  0xff /* field_instance_ipv4_diffserv */,
-  0xffff /* field_instance_ipv4_totalLen */,
-  0xffff /* field_instance_ipv4_identification */,
-  0xffff /* field_instance_ipv4_fragOffset */,
-  0xff /* field_instance_ipv4_ttl */,
-  0xff /* field_instance_ipv4_protocol */,
-  0xffff /* field_instance_ipv4_hdrChecksum */,
-  0xffffffff /* field_instance_ipv4_srcAddr */,
-  0xffffffff /* field_instance_ipv4_dstAddr */
+  0xffff /* field_instance_ethernet_etherType */
 };
 
 // sugar@123
@@ -183,17 +127,7 @@
   header_instance_standard_metadata /* field_instance_standard_metadata__padding */,
   header_instance_ethernet /* field_instance_ethernet_dstAddr */,
   header_instance_ethernet /* field_instance_ethernet_srcAddr */,
-  header_instance_ethernet /* field_instance_ethernet_etherType */,
-  header_instance_ipv4 /* field_instance_ipv4_versionIhl */,
-  header_instance_ipv4 /* field_instance_ipv4_diffserv */,
-  header_instance_ipv4 /* field_instance_ipv4_totalLen */,
-  header_instance_ipv4 /* field_instance_ipv4_identification */,
-  header_instance_ipv4 /* field_instance_ipv4_fragOffset */,
-  header_instance_ipv4 /* field_instance_ipv4_ttl */,
-  header_instance_ipv4 /* field_instance_ipv4_protocol */,
-  header_instance_ipv4 /* field_instance_ipv4_hdrChecksum */,
-  header_instance_ipv4 /* field_instance_ipv4_srcAddr */,
-  header_instance_ipv4 /* field_instance_ipv4_dstAddr */
+  header_instance_ethernet /* field_instance_ethernet_etherType */
 };
 
 // sugar@124

@@ -1,4 +1,4 @@
- #include "p4-interface.h"// sugar@20
+#include "p4-interface.h"
  #include "actions.h"// sugar@21
  #include <unistd.h>// sugar@22
  #include <arpa/inet.h>// sugar@23
@@ -15,51 +15,38 @@
      (void)value32; (void)res32; (void)mask32;// sugar@441
  }// sugar@451
 
+  void action_code__nop(packet_descriptor_t* pd, lookup_table_t** tables ) {// sugar@439
+     uint32_t value32, res32, mask32;// sugar@440
+     (void)value32; (void)res32; (void)mask32;// sugar@441
+ }// sugar@451
 
-void action_code_on_miss(packet_descriptor_t* pd, lookup_table_t** tables ) 
-{
-   uint32_t value32, res32, mask32;
-   (void)value32; (void)res32; (void)mask32;
-}
+void action_code_mac_learn(packet_descriptor_t* pd, lookup_table_t** tables ) {// sugar@439
+     uint32_t value32, res32, mask32;// sugar@440
+     (void)value32; (void)res32; (void)mask32;// sugar@441
+   
+    struct type_field_list fields;// sugar@369
+    fields.fields_quantity = 2;// sugar@371
+    fields.field_offsets = malloc(sizeof(uint8_t*)*fields.fields_quantity);// sugar@372
+    fields.field_widths = malloc(sizeof(uint8_t*)*fields.fields_quantity);// sugar@373
+    fields.field_offsets[0] = (uint8_t*) field_desc(pd, field_instance_ethernet_srcAddr).byte_addr;// sugar@377
+    fields.field_widths[0]  =            field_desc(pd, field_instance_ethernet_srcAddr).bitwidth;// sugar@378
+    fields.field_offsets[1] = (uint8_t*) field_desc(pd, field_instance_standard_metadata_ingress_port).byte_addr;// sugar@377
+    fields.field_widths[1]  =            field_desc(pd, field_instance_standard_metadata_ingress_port).bitwidth;// sugar@378
 
-void action_code_fib_hit_nexthop(packet_descriptor_t* pd, lookup_table_t** tables , struct action_fib_hit_nexthop_params parameters) {
-
-		uint32_t value32, res32, mask32;
-		(void)value32; (void)res32; (void)mask32;
-		
-		if(6 < field_desc(pd, field_instance_ethernet_dstAddr).bytewidth) {
-				 MODIFY_BYTEBUF_BYTEBUF(pd, field_instance_ethernet_dstAddr, parameters.dmac, 6);
-		} else {
-				 MODIFY_BYTEBUF_BYTEBUF(pd, field_instance_ethernet_dstAddr, parameters.dmac + 
-								(6 - field_desc(pd, field_instance_ethernet_dstAddr).bytewidth), 
-								field_desc(pd, field_instance_ethernet_dstAddr).bytewidth)
-		}
-
-		MODIFY_INT32_BYTEBUF(pd, field_instance_standard_metadata_egress_port, parameters.port, 2)
-
-		value32 = -1;
-		res32 = pd->fields.field_instance_ipv4_ttl;
-		pd->fields.attr_field_instance_ipv4_ttl = MODIFIED;
-
-		value32 += res32;
-		pd->fields.field_instance_ipv4_ttl = value32;
-		pd->fields.attr_field_instance_ipv4_ttl = MODIFIED;
+    generate_digest(bg,"mac_learn_digest",0,&fields); sleep(1);// sugar@384
 
 }// sugar@451
 
-void action_code_rewrite_src_mac(packet_descriptor_t* pd, lookup_table_t** tables , struct action_rewrite_src_mac_params parameters) 
-{
-		uint32_t value32, res32, mask32;
-		(void)value32; (void)res32; (void)mask32;
-		if(6 < field_desc(pd, field_instance_ethernet_srcAddr).bytewidth) 
-		{
-				MODIFY_BYTEBUF_BYTEBUF(pd, field_instance_ethernet_srcAddr, parameters.smac, 6);
-		} else 
-		{
-				MODIFY_BYTEBUF_BYTEBUF(pd, field_instance_ethernet_srcAddr, parameters.smac + 
-																		(6 - field_desc(pd, field_instance_ethernet_srcAddr).bytewidth), 
-																							field_desc(pd, field_instance_ethernet_srcAddr).bytewidth)
-		}
+void action_code_forward(packet_descriptor_t* pd, lookup_table_t** tables , struct action_forward_params parameters) {// sugar@439
+   uint32_t value32, res32, mask32;// sugar@440
+   (void)value32; (void)res32; (void)mask32;// sugar@441
+	 MODIFY_INT32_BYTEBUF(pd, field_instance_standard_metadata_egress_port, parameters.port, 2)// sugar@187
+}// sugar@451
 
-}
+void action_code_bcast(packet_descriptor_t* pd, lookup_table_t** tables ) {// sugar@439
+   uint32_t value32, res32, mask32;// sugar@440
+   (void)value32; (void)res32; (void)mask32;// sugar@441
+	 value32 = 100;// sugar@144
+	 MODIFY_INT32_INT32_AUTO(pd, field_instance_standard_metadata_egress_port, value32)// sugar@41
+}// sugar@451
 

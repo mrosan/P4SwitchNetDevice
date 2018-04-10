@@ -13,15 +13,11 @@
  uint8_t reverse_buffer[6];// sugar@34
  void table_smac_key(packet_descriptor_t* pd, uint8_t* key) {// sugar@43
  			EXTRACT_BYTEBUF(pd, field_instance_ethernet_srcAddr, key)// sugar@53
- 			//printf("This is the what [table_smac_key] extracted as key: ");//MODDED
-      //print_mac48(key);//MODDED
  			key += 6;// sugar@54
  }// sugar@62
 
  void table_dmac_key(packet_descriptor_t* pd, uint8_t* key) {// sugar@43
  			EXTRACT_BYTEBUF(pd, field_instance_ethernet_dstAddr, key)// sugar@53
- 			//printf("This is the what [table_dmac_key] extracted as key: ");//MODDED
-      //print_mac48(key);//MODDED
  			key += 6;// sugar@54
  }// sugar@62
 
@@ -30,8 +26,6 @@
      printf("  :::: EXECUTING TABLE smac\n");// sugar@70
      uint8_t* key[6];// sugar@71
      table_smac_key(pd, (uint8_t*)key);// sugar@72
-     //printf("----> "); print_mac48(*key);
-     //uint8_t key[6] = {0,0,0,0,0,0}; //MODDED
 
      uint8_t* value = exact_lookup(tables[TABLE_smac], (uint8_t*)key);// sugar@73
      //printf("This is the value [apply_table_smac] received from exact_lookup: %d\n", *value);//MODDED

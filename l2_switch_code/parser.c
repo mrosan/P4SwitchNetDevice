@@ -61,8 +61,6 @@
      (void)value32;// sugar@125
      extract_header_ethernet(buf, pd);// sugar@130
      buf += pd->headers[header_instance_ethernet].length;// sugar@131
-     //printf("This is the first few character of the data in [parse_state_parse_ethernet]: ");//MODDED
-     //print_mac48(buf);//MODDED
 			{// sugar@25
 			 if(verify_packet(pd)) {
 			 			p4_pe_checksum(pd); // sugar@26 //always false, so p4_pe_checksum wont drop the packet

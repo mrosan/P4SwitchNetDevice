@@ -48,8 +48,7 @@ extern "C"
   #include "ns3/p4-module.h"
 }
 
-//extern "C" void exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value);
-extern void exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value);
+extern int exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value);
  
     int
     init_tables_v1(lookup_table_t** t)

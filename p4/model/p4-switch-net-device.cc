@@ -147,20 +147,20 @@ P4SwitchNetDevice::ReceiveFromDevice (Ptr<NetDevice> netdev, Ptr<const Packet> p
 int
 P4SwitchNetDevice::HandlePacket(Ptr<const Packet> packet, const Address& src, const Address& dst, int inport, uint16_t protocol, uint16_t mtu){
 /*
+  // For testing purposes:
   printf("\n-----------------------The content of the packet ---------------------------\n");
   std::cout << packet->ToString() << std::endl;
-    printf("----------------------------------------------------------------------------\n\n");
+  printf("----------------------------------------------------------------------------\n\n");
 */
 
   //initialize packet buffer and dataplane
   packet_descriptor_t* pd = new packet_descriptor_t;
   BufferFromPacket (pd,packet,src,dst,protocol,mtu);
-  init_dataplane(pd, m_tables); 
+  init_dataplane(pd, m_tables);
   
   //set the packet descriptor's inport field manually
-  uint32_t res32;
-  MODIFY_INT32_INT32_BITS(pd, field_instance_standard_metadata_ingress_port, (uint32_t) inport);
-  
+  initialize(pd, inport);
+    
   //set the global "backend" variable that the p4 code uses
 	set_fake_backend(m_tables,m_digest);
 
@@ -174,7 +174,7 @@ P4SwitchNetDevice::HandlePacket(Ptr<const Packet> packet, const Address& src, co
   */
       
   //get the result port address
-  int port = EXTRACT_EGRESSPORT(pd);     
+  int port = get_outport(pd);     
   
   //send the packet through the appropriate port
   //if broadcast, send everywhere except 'inport'
@@ -210,7 +210,6 @@ P4SwitchNetDevice::HandlePacket(Ptr<const Packet> packet, const Address& src, co
     
   }
 
-
   delete pd->data;
   delete pd;
   
@@ -230,7 +229,7 @@ P4SwitchNetDevice::BufferFromPacket (packet_descriptor_t* pd, Ptr<const Packet> 
   uint8_t dstBuf[6]; 
   dst48.CopyTo(dstBuf);
   
-  size_t s = packet->GetSize (); //instead of mtu
+  //size_t s = packet->GetSize (); //instead of mtu
   //std::cout << "Maximum Transmission Unit: " << mtu << ", Packet's size: " << s << std::endl;
   
   uint8_t dataBuf[mtu];
@@ -239,13 +238,6 @@ P4SwitchNetDevice::BufferFromPacket (packet_descriptor_t* pd, Ptr<const Packet> 
     std::cout << "Serialize successful!" << std::endl;
   } else std::cout << "Serialize UNsuccessful!" << std::endl;
   
-  /* 
-  Ipv4Header ip_hd;
-  if (packet->PeekHeader (ip_hd)){
-      //extract parts of the ipv4 header
-  }
-  */
-  
   size_t size = 2 * ETH_ADDR_LEN + ETH_TYPE_LEN + mtu;
   pd->data = new uint8_t[size];
  
@@ -253,8 +245,6 @@ P4SwitchNetDevice::BufferFromPacket (packet_descriptor_t* pd, Ptr<const Packet> 
   memcpy(pd->data + ETH_ADDR_LEN,srcBuf,ETH_ADDR_LEN);
   memcpy(pd->data + 2*ETH_ADDR_LEN,&protocol,ETH_TYPE_LEN);
   memcpy(pd->data + 2*ETH_ADDR_LEN + ETH_TYPE_LEN,dataBuf,mtu);
-  
-  //memcpy(pd->data,dataBuf,mtu); //if no eth. header needed, just memcpy this instead
 }
 
 
