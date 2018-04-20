@@ -18,7 +18,7 @@ typedef struct table_entry table_entry_t;
 struct table_entry {                   
     uint8_t* key;         
     uint8_t* value;
-    uint8_t* depth;
+    uint8_t* mask;
     table_entry_t* next;
     table_entry_t* child;
 };
@@ -99,6 +99,7 @@ void set_fake_backend (lookup_table_t** t, int (*p4_msg_digest_callback)(lookup_
 void create_tables (lookup_table_t** t);
 void delete_tables (lookup_table_t** t);
 void free_entries (table_entry_t* t);
+void free_entry (table_entry_t* e);
 void table_setdefault (lookup_table_t* t, uint8_t* value);
 
 
@@ -109,7 +110,9 @@ int ternary_add (lookup_table_t* t, uint8_t* key, uint8_t* mask,         uint8_t
 uint8_t*    exact_lookup (lookup_table_t* t, uint8_t* key);
 uint8_t*      lpm_lookup (lookup_table_t* t, uint8_t* key);
 uint8_t*  ternary_lookup (lookup_table_t* t, uint8_t* key);
-int compare_keys(uint8_t* key1, uint8_t* key2, uint8_t length);
+int   exact_remove (lookup_table_t* t, uint8_t* key                        );
+int     lpm_remove (lookup_table_t* t, uint8_t* key, uint8_t prefix_length );
+int ternary_remove (lookup_table_t* t, uint8_t* key                        );
 
 
 //Functions for packet handling
@@ -122,9 +125,11 @@ void handle_packet(packet_descriptor_t* packet, lookup_table_t** tables);
 void debug(char* str, ...);
 void print_key(uint8_t* key, int n);
 int get_outport(packet_descriptor_t* p);
+int compare_keys(uint8_t* key1, uint8_t* key2, uint8_t length);
+int compare_ternary_keys(uint8_t* key1, uint8_t* key2, uint8_t length, uint8_t* mask);
 
 
-//Functions for error-free building of the P4 switch
+//Functions for the error-free building of the P4 switch
 void generate_digest (backend bg, char* name, int receiver, struct type_field_list* digest_field_list);
 void table_setdefault_promote  (int tableid, uint8_t* value);
 void exact_add_promote  (int tableid, uint8_t* key, uint8_t* value);

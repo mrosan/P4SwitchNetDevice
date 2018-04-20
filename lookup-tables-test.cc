@@ -40,7 +40,6 @@
 #include "ns3/csma-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/applications-module.h"
-//#include "ns3/openflow-module.h"
 #include "ns3/log.h"
 
 extern "C"
@@ -49,57 +48,158 @@ extern "C"
 }
 
 extern int exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value);
-extern int lpm_add (lookup_table_t* t, uint8_t* key, uint8_t depth, uint8_t* value);
-
+extern int lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value);
+extern int ternary_add (lookup_table_t* t, uint8_t* key, uint8_t* mask, uint8_t* value);
+extern uint8_t* exact_lookup (lookup_table_t* t, uint8_t* key);
+extern uint8_t* lpm_lookup (lookup_table_t* t, uint8_t* key);
+extern uint8_t* ternary_lookup (lookup_table_t* t, uint8_t* key);
+extern int exact_remove (lookup_table_t* t, uint8_t* key);
+extern int lpm_remove (lookup_table_t* t, uint8_t* key, uint8_t prefix_length );
+extern int ternary_remove (lookup_table_t* t, uint8_t* key);
+extern void free_entries (table_entry_t* t);
+ 
 int
 init_tables_v1(lookup_table_t** t)
-{		
-    printf("   ~~~executing init_tables_v1~~~   \n");    
+{			  
+    //set default smac action    
+    struct smac_action def_smac_action;
+    def_smac_action.action_id = 0; //action_mac_learn
+    memcpy(t[0]->default_val, (uint8_t*)&def_smac_action, sizeof(struct smac_action));
+
+    //set default dmac action
+    struct action_forward_params param;
+    param.port[0] = 100; param.port[1] = 0;
+    struct dmac_action def_dmac_action;	
+    def_dmac_action.action_id = 3; //action_bcast
+    def_dmac_action.forward_params = param;
+    memcpy(t[1]->default_val, (uint8_t*)&def_dmac_action, sizeof(struct dmac_action));
+
+    //add broadcast entry to dmac table
+    uint8_t key[6] = {255,255,255,255,255,255};
+    struct action_forward_params bcast_param;
+    bcast_param.port[0] = (uint8_t) BROADCAST_PORT;
+    struct dmac_action dmac_action_val;	
+    dmac_action_val.action_id = 3; //action_bcast
+    dmac_action_val.forward_params = bcast_param;
+    exact_add(t[1],key,(uint8_t*)&dmac_action_val);
+
+    //--------------------------TESTING------------------------------
+    //we can treat the smac table as if it was an lpm-type table
     
-    //set default action for both tables
-    struct ipv4_fib_lpm_action def_fib_action; 
-    def_fib_action.action_id = 0; //action_on_miss
-    memcpy(t[0]->default_val, (uint8_t*)&def_fib_action, sizeof(struct ipv4_fib_lpm_action));
-
-    struct sendout_action def_so_action;
-    def_so_action.action_id = 0; //action_on_miss
-    memcpy(t[1]->default_val, (uint8_t*)&def_so_action, sizeof(struct sendout_action));
-
-    //add entries to lpm table
-    uint8_t i;
-    for (i=0; i<4; i++){
-		    uint8_t key[4] = {10,1,1,i};
-		    uint8_t port[2] = {i,0};
-		    uint8_t dmac[6] = {0,0,0,0,0,(uint8_t)(1+2*i)};
-		    struct action_fib_hit_nexthop_params param;
-		    memcpy(param.port,port,sizeof(param.port));
-		    memcpy(param.dmac,dmac,sizeof(param.dmac));
-		    struct ipv4_fib_lpm_action lpm_action_val;
-		    lpm_action_val.action_id = 1;	//action_fib_hit_nexthop
-		    lpm_action_val.fib_hit_nexthop_params = param;
-		    lpm_add(t[0],key,32,(uint8_t*)&lpm_action_val);
-    }	    
-
-    //set smac_rewrite table
-    for (i=0; i<4; i++){
-		    //uint8_t* smac_value;
-		    uint8_t key[2] = {i,0};
-		    uint8_t smac[6] = {0,0,0,0,0,(uint8_t)(1+2*i)};
-		    struct action_rewrite_src_mac_params param;
-		    memcpy(param.smac,smac,sizeof(param.smac));
-		    struct sendout_action action_val;	
-		    action_val.action_id = 2; //action_rewrite_src_mac
-		    action_val.rewrite_src_mac_params = param;
-		    exact_add(t[1],key,(uint8_t*)&action_val);
-    }	        
     
+    printf("\n----> LPM tests <----\n");
+    
+    uint8_t key0[6] = {10,1,0,0,0,0};
+    //uint8_t port[2] = {0,0};
+    //uint8_t mac[6] = {0,0,0,0,0,42};
+    struct smac_action test_smac;
+    def_smac_action.action_id = 42;
+
+    printf("\n>>> Add a value at depth 2\n");
+    lpm_add(t[0],key0,16,(uint8_t*)&test_smac);
+    printf("\n>>> Add a different value with the same key at the same depth (overwrite)\n");
+    def_smac_action.action_id = 24;
+    lpm_add(t[0],key0,16,(uint8_t*)&test_smac);
+    printf("\n>>> Add more values with the same key, but at different depths\n");
+    def_smac_action.action_id = 10;
+    lpm_add(t[0],key0,8,(uint8_t*)&test_smac);
+    def_smac_action.action_id = 11;
+    lpm_add(t[0],key0,24,(uint8_t*)&test_smac);
+
+    //create different keys for further testing
+    uint8_t key1[6] = {10,1,1,1,0,0};
+    uint8_t key2[6] = {10,1,1,0,0,0};
+    uint8_t key3[6] = {10,1,1,2,0,0};
+    uint8_t key4[6] = {10,1,0,0,0,0};
+    uint8_t key5[6] = {45,1,45,1,0,0};
+    //uint8_t key6[6] = {0,0,1,1,0,0};
+    uint8_t key7[6] = {60,0,1,1,0,0};
+    uint8_t key8[6] = {45,1,45,0,0,0};
+    uint8_t key9[6] = {45,1,45,2,0,0};
+    
+    printf("\n>>> branch out on the first level, though prefix is for second level\n");
+    // ("creating neighbours" test)
+    def_smac_action.action_id = 200;
+    lpm_add(t[0],key7,16,(uint8_t*)&test_smac);
+
+    printf("\n>>> set values on the lower levels, the keys aren't in ascending order\n");
+    // ("ordering entries" test)
+    def_smac_action.action_id = 101;
+    lpm_add(t[0],key5,32,(uint8_t*)&test_smac);
+    def_smac_action.action_id = 100;
+    lpm_add(t[0],key8,32,(uint8_t*)&test_smac);
+    def_smac_action.action_id = 102;
+    lpm_add(t[0],key9,32,(uint8_t*)&test_smac);
+    
+    /* This is how the LPM tree should look like now:
+    * ( wildcard is *, empty entry is in { }, entry with value is in [ ]
+    * For simplicity's sake I shortened the keys by two bytes (the last two 0-s are omitted).
+    *
+    *   [def_val>]
+    *       |
+    *   [10,*,*,*] ---- {45,*,*,*} ---- {60,*,*,*}
+    *       |               |               |
+    *   [10,1,*,*]      {45,1,*,*}      [60,0,*,*]
+    *       |               |
+    *   [10,1,0,*]      {45,1,45,*}
+    *                       |
+    *                   [45,1,45,0] ---- [45,1,45,1] ---- [45,1,45,2]
+    *
+    */
+
+    //lookup tests
+    printf("\n>>> test with key {10,1,1,1,0,0}\n");
+    lpm_lookup(t[0],key1);
+    printf("\n>>> test with key {10,1,1,0,0,0}\n");
+    lpm_lookup(t[0],key2);
+    printf("\n>>> test with key {10,1,1,2,0,0}\n");
+    lpm_lookup(t[0],key3);
+    printf("\n>>> test with key {10,1,0,0,0,0}\n");
+    lpm_lookup(t[0],key4);
+    printf("\n>>> test with key {0,1,45,0,0,0}\n");
+    lpm_lookup(t[0],key5);
+    
+/*
+    //another test (overwrite exact_add)
+    uint8_t k[2] = {1,0};
+    uint8_t smac[6] = {0,0,0,0,0,5};
+    struct action_rewrite_src_mac_params param2;
+    memcpy(param2.smac,smac,sizeof(param2.smac));
+    struct sendout_action action_val;	
+    action_val.action_id = 2; //action_rewrite_src_mac
+    action_val.rewrite_src_mac_params = param2;
+    exact_add(t[1],k,(uint8_t*)&action_val);
+*/
+
     return 0;
 }
 
 int 
 p4_msg_digest_v1(lookup_table_t** t, char* name, int receiver, struct type_field_list* digest_field_list)
 {
-    printf("   ~~~executing p4_msg_digest_v1~~~   \n");
+    if(strcmp("mac_learn_digest",name)==0) {
+        //extract data
+        uint8_t* port;
+        uint8_t* mac;
+        mac = digest_field_list->field_offsets[0];
+        port = digest_field_list->field_offsets[1];
+        printf("     : Learned that port %d belongs to MAC address %02x:%02x:%02x:%02x:%02x:%02x \n",
+                                                      *port,mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+        //add SMAC entry
+        struct smac_action smac_action_val;
+        smac_action_val.action_id = 1; //action__nop
+        exact_add(t[0],mac,(uint8_t*)&smac_action_val);
+
+        //add DMAC entry				
+        struct action_forward_params param;
+        param.port[0] = *port; param.port[1] = 0;
+        struct dmac_action dmac_action_val;	
+        dmac_action_val.action_id = 2; //action_forward
+        dmac_action_val.forward_params = param;
+        exact_add(t[1],mac,(uint8_t*)&dmac_action_val);	
+    } else {
+        printf("Error: p4_msg_digest could not recognize the command.\n");
+    }
     return 0;
 }
 
@@ -218,8 +318,7 @@ main (int argc, char *argv[])
   ApplicationContainer app = onoff.Install (terminals.Get (0));
   // Start the application
   app.Start (Seconds (1.0));
-  //app.Stop (Seconds (2.0));
-  app.Stop (Seconds (1.4));
+  app.Stop (Seconds (1.08));
 
   // Create an optional packet sink to receive these packets
   PacketSinkHelper sink ("ns3::UdpSocketFactory",
@@ -233,9 +332,8 @@ main (int argc, char *argv[])
   onoff.SetAttribute ("Remote",
                       AddressValue (InetSocketAddress (Ipv4Address ("10.1.1.1"), port)));
   app = onoff.Install (terminals.Get (3));
-  app.Start (Seconds (1.1));
-  //app.Stop (Seconds (2.0));
-  app.Stop (Seconds (1.4));
+  app.Start (Seconds (1.05));
+  app.Stop (Seconds (1.08));
 
   app = sink.Install (terminals.Get (0));
   app.Start (Seconds (0.0));

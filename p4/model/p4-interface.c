@@ -37,21 +37,6 @@ set_fake_backend (lookup_table_t** t, int (*p4_msg_digest_callback)(lookup_table
 	bg->pdc = p4_msg_digest_callback;
 }
 
-// Recursive function for freeing the lookup tables and their values within
-//PARAM e: pointer to a table entry
-void
-free_entries (table_entry_t* e)
-{
-	if( e ) {				
-		free_entries(e->next);
-		free_entries(e->child);
-		if (e->depth) free(e->depth);
-		if (e->key) free(e->key);
-		if (e->value) free(e->value);
-		free(e);
-	}
-}
-
 // Function for initiating the deletion of all the lookup tables.
 //PARAM t: pointer to an array of lookup tables
 void
@@ -65,6 +50,28 @@ delete_tables (lookup_table_t** t)
 	}
 }
 
+// Recursive function for freeing the lookup tables and their values within
+//PARAM e: pointer to a table entry
+void
+free_entries (table_entry_t* e)
+{
+	if( e ) {				
+		free_entries(e->next);
+		free_entries(e->child);
+		free_entry(e);
+	}
+}
+
+// Function that frees a table_entry_t
+//PARAM e: pointer to a table entry
+void
+free_entry (table_entry_t* e) {
+	if (e->mask) free(e->mask);
+	if (e->key) free(e->key);
+	if (e->value) free(e->value);
+	free(e);
+}
+
 // Function for adding a new entry to a lookup table with EXACT key match
 // This function can be called on any table, regardless of table type.
 //PARAM t: pointer to a lookup table
@@ -74,7 +81,7 @@ delete_tables (lookup_table_t** t)
 int
 exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value)
 {
-	printf("\n ------> performing exact_add with value %d\n\n",*value);
+	printf("Performing exact_add with value %d and key ",*value); print_key(key,t->key_size);
 		
 	table_entry_t* p = t->table;			// for searching the key
 	table_entry_t* q = NULL;				// for inserting the new entry
@@ -88,7 +95,7 @@ exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value)
 		} else if ( c > 0 ) {				// certainly won't find matching entry
 			match_possible = 0;
 		} else {							// found a matching entry
-			printf("~~~ exact_add: key already exist, overwriting value ~~~\n");
+			printf("~~~ exact_add: key already exists, overwriting value ~~~\n");
 			free(p->value);
 			p->value = (uint8_t*)malloc(t->val_size);
 			memcpy(p->value, value, t->val_size);
@@ -99,8 +106,7 @@ exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value)
 	// if the function didn't return -- create a new entry
 	//create entry
 	table_entry_t *res = (table_entry_t *) malloc(sizeof(table_entry_t));
-	res->depth = malloc(sizeof(uint8_t));
-	res->depth = NULL;
+	res->mask = NULL;
 	res->next = NULL;
 	res->child = NULL;
 	//set its key
@@ -127,6 +133,7 @@ exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value)
 
 // Function for adding a new entry to a lookup table with longest prefix match
 // This function can be called on any table, regardless of table type.
+// Note: the table_entry type's mask value is used here as depth, which contains the prefix length in bytes
 //PARAM t: pointer to a lookup table
 //PARAM key: a pointer to an array of bytes, which is used for identifying the entries
 //PARAM prefix_length: the number of bytes which determines the size of the prefix
@@ -135,6 +142,8 @@ exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value)
 int
 lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value)
 {
+	printf("Performing lpm_add with value %d, depth %d and key ",*value,prefix_length/8); print_key(key,t->key_size);
+
 	uint8_t depth = prefix_length/8;
 	// The prefix length should be at least 1 byte. At depth == 0, the user should just set the default_val
 	if ( 0 < depth && depth <= t->key_size ) {
@@ -156,7 +165,7 @@ lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value)
 				} else if ( c > 0 ) {		// certainly won't find matching entry on this depth
 					p = NULL;
 				} else {					// found a matching entry
-					printf("Found matching entry at depth %d\n",d);
+					printf("~~~ lpm_add: found matching entry at depth %d\n",d);
 					match_on_this_depth = 1;
 					res = p;
 					q = p;
@@ -175,42 +184,41 @@ lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value)
 					j++;
 				}
 				//set depth
-				s->depth = malloc(sizeof(uint8_t));
-				*(s->depth) = d;
+				s->mask = malloc(sizeof(uint8_t));
+				*(s->mask) = d;
 				//at first, set the rest to NULL
 				s->next = NULL;
 				s->child = NULL;
 				s->value = NULL;
-				//then link it to the tree	
-				if ( res ) {								//if the tree wasn't empty
+				//then link it to the tree
+				if ( res ) { //if the tree wasn't empty	
 					// new entry comes after pointer q,
 					// but we have to determine
 					// whether it is the "child" of q,
 					// or the "next" of q
-					if ( *(res->depth) == *(q->depth) ) { 	// p is one depth lower than q (p can be NULL, though)
+					if ( *(res->mask) == *(q->mask) ) { 	// p is one depth lower than q (p can be NULL, though)
 						q->child = s;
 					} else {								// p is on the same level as q (p can be NULL, though)
 						q->next = s;
 					}
-					s->next = p;
-										
-				} else {									//if the tree was empty
+					s->next = p;						
+				} else { //if the tree was empty
 					t->table = s;
 					q = s;
 					p = s->child; //NULL
 				}
 				res = s;
-				printf("Added entry on level %d with key ",d);	print_key(q->key,d);
+				printf("~~~ lpm_add: added entry on level %d with key ",d);	print_key(res->key,d);
 			}
 			d++;
 		}
 				
 		//finally (once we reached the desired depth) assign value
 		if ( res->value ) {
-			printf("Value already exists at this entry! Overwriting value...\n");
+			printf("~~~ lpm_add: Value already exists at this entry! Overwriting value...\n");
 			free(res->value);
 		} else {
-			printf("Adding value to the entry.\n");
+			printf("~~~ lpm_add: Adding value to the entry.\n");
 		}
 		res->value = (uint8_t*)malloc(t->val_size);
 	    memcpy(res->value, value, t->val_size);
@@ -222,18 +230,59 @@ lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value)
 	return 0;
 }
 
+// Function for adding a new entry to a lookup table with longest prefix match
+// This function can be called on any table, regardless of table type.
+//PARAM t: pointer to a lookup table
+//PARAM key: a pointer to an array of bytes, which is used for identifying the entries
+//PARAM mask: an array consisting of 0 and 255 values, matching the key in length
+//PARAM value: the pointer to the new value we'd like to add
+//RETURNS: 0 if no error occurred, error number otherwise
 int
 ternary_add (lookup_table_t* t, uint8_t* key, uint8_t* mask, uint8_t* value)
 {
-	return 1;
-}
-
-void
-generate_digest (backend bg, char* name, int receiver, struct type_field_list* digest_field_list)
-{
-
-	bg->pdc(bg->t,name,receiver,digest_field_list);
+	printf("Performing ternary_add with value %d and key ",*value); print_key(key,t->key_size);
+	
+	table_entry_t* p = t->table;
 		
+	while ( p ) {
+		int c = compare_ternary_keys(key,p->key,t->key_size,p->mask);
+		if ( c != 0 ) {
+			p = p->next;
+		} else {
+			printf("~~~ ternary_add: key already exists, overwriting value ~~~\n");
+			free(p->value);
+			p->value = (uint8_t*)malloc(t->val_size);
+			memcpy(p->value, value, t->val_size);
+			return 0;
+		}
+	}
+		
+	// if the function didn't return -- create a new entry
+	//create entry
+	table_entry_t *res = (table_entry_t *) malloc(sizeof(table_entry_t));
+	res->mask = NULL;
+	res->next = NULL;
+	res->child = NULL;
+	//set its key
+	res->key = (uint8_t*)malloc(t->key_size * sizeof(uint8_t));
+	int j;
+	for (j=0; j<t->key_size; j++) {
+		res->key[j] = key[j];
+	}
+	//set its mask
+	res->mask = (uint8_t*)malloc(t->key_size * sizeof(uint8_t));
+	for (j=0; j<t->key_size; j++) {
+		res->mask[j] = mask[j];
+	}
+	//set its value
+	res->value = value;
+	res->value = (uint8_t*)malloc(t->val_size);
+	memcpy(res->value, value, t->val_size);
+	//set the pointers
+	res->next = t->table;
+	t->table = res;
+		
+	return 0;
 }
 
 // Function for searching in a table by exactly matching keys.
@@ -243,16 +292,17 @@ generate_digest (backend bg, char* name, int receiver, struct type_field_list* d
 uint8_t*
 exact_lookup (lookup_table_t* t, uint8_t* key)
 {
-	uint8_t* res = NULL;
-	table_entry_t* s = t-> table;
+	printf("Performing exact_lookup with key "); print_key(key,t->key_size);
 
+	uint8_t* res = NULL;
+	table_entry_t* s = t->table;
 	while ( s ) {
 		int c = compare_keys(key,s->key,t->key_size);
-		if ( c < 0 ) {			// haven't found matching entry yet
+		if ( c < 0 ) { // haven't found matching entry yet
 			s = s->next;
-		} else if ( c > 0 ) {	// certainly won't find matching entry
+		} else if ( c > 0 ) { // certainly won't find matching entry
 			s = NULL;
-		} else {				// found a matching entry
+		} else { // found a matching entry
 			res = s->value;
 			s = NULL;
 		}
@@ -275,23 +325,27 @@ exact_lookup (lookup_table_t* t, uint8_t* key)
 uint8_t*
 lpm_lookup (lookup_table_t* t, uint8_t* key)
 {
+	//printf("   ::: lpm_lookup beginning the search with key "); print_key(key,t->key_size);
+	printf("Performing lpm_lookup with key "); print_key(key,t->key_size);
+	
 	table_entry_t* s = t->table;
 	uint8_t* res = NULL;
 	// parse tree until either there's no match on the current depth, or we reach the "bottom"
 	while ( s ) {
-		int d = *(s->depth);
+		int d = *(s->mask);
 		int c = compare_keys(s->key,key,d);
-		if ( c < 0 ) {						// haven't found matching entry on this depth yet
+		if ( c < 0 ) {
+			printf("   ::: lpm_lookup haven't found yet a match at depth %d for key ", d); print_key(s->key,d);
 			s = s->next;
-		} else if ( c > 0 ) {			// certainly won't find matching entry on this depth
+		} else if ( c > 0 ) {
+			printf("   ::: lpm_lookup will not find a match at depth %d for key ", d); print_key(s->key,d);
 			s = NULL;
-		} else {									// found a matching entry
-			// set result only if the node has a value
+		} else {
+			printf("   ::: lpm_lookup found a matching entry at depth %d for key ", d); print_key(s->key,d);
 			if (s->value) {
 				res = s->value;
-				printf("   ::: lpm_lookup found value at depth %d for key ", d); print_key(key,d);
+				printf("   ::: lpm_lookup found value %d belonging to this entry", *s->value);
 			}
-			// go one level deeper
 			s = s->child;
 		}
 	}
@@ -305,10 +359,132 @@ lpm_lookup (lookup_table_t* t, uint8_t* key)
 	return res;
 }
 
+// This function looks up an entry (from a TERNARY type table) that matches the given key.
+// The keys within the table may be masked, and the lookup takes it into consideration, returning the first fitting match.
+//PARAM t: pointer to a lookup table
+//PARAM key: a pointer to an array of bytes, which is used for identifying the entries
+//RETURNS: 0 if there were no errors
 uint8_t*
 ternary_lookup (lookup_table_t* t, uint8_t* key)
 {
-	return NULL;
+	printf("Performing ternary_lookup with key "); print_key(key,t->key_size);
+
+	uint8_t* res = NULL;
+	table_entry_t* s = t->table;
+	while ( s ) {
+		int c = compare_ternary_keys(key,s->key,t->key_size,s->mask);
+		if ( c != 0 ) {
+			s = s->next;
+		} else {
+			res = s->value;
+			s = NULL;
+		}
+	}
+
+	if(res) {
+		printf("   ::: ternary_lookup was successful with value %d and key ",*res); print_key(key,t->key_size); 	
+	} else {
+		printf("   ::: ternary_lookup didn't find match for key "); print_key(key,t->key_size);
+		res = t->default_val;
+	}	
+
+	return res;
+}
+
+// This function deletes an entry (from an EXACT type table) that matches the given key.
+//PARAM t: pointer to a lookup table
+//PARAM key: a pointer to an array of bytes, which is used for identifying the entries
+//RETURNS: 0 if there were no errors
+int
+exact_remove (lookup_table_t* t, uint8_t* key)
+{
+	table_entry_t* s = t->table;
+	table_entry_t* q = NULL;
+
+	while ( s ) {
+		int c = compare_keys(key,s->key,t->key_size);
+		if ( c < 0 ) {
+			q = s;
+			s = s->next;
+		} else if ( c > 0 ) {
+			s = NULL;
+		} else {
+			if (q) {
+				q->next = s->next;
+			} else {
+				t->table = s->next;
+			}
+			free_entry(s);
+			s = NULL;
+		}
+	}
+	return 0;
+}
+
+// This function deletes an entry (from a LPM type table) that matches the given key and depth.
+//PARAM t: pointer to a lookup table
+//PARAM key: a pointer to an array of bytes, which is used for identifying the entries
+//PARAM prefix_length: the number of bytes which determines the size of the prefix
+//only the entry with matching prefix length (depth) will be deleted
+//RETURNS: 0 if there were no errors
+int
+lpm_remove (lookup_table_t* t, uint8_t* key, uint8_t prefix_length)
+{
+	uint8_t depth = prefix_length/8;
+	table_entry_t* s = t->table;
+	while ( s ) {
+		int d = *(s->mask);
+		int c = compare_keys(s->key,key,d);
+		if ( c < 0 ) {
+			s = s->next;
+		} else if ( c > 0 ) {
+			s = NULL;
+		} else {
+			if (d == depth) {
+				// Entries can only safely deleted if it doesnt have any child and/or neighbour.
+				// If that's the case, only the value will be removed.
+				//		This is a simple, but not perfect solution: it might leave hanging value-free entries,
+				//		because the neighbour-pointers aren't bidirectional. (They will be cleared up only at the end.)
+				if( !s->child && !s->next ) {
+					free_entry(s);
+					printf("   ::: lpm_remove removed the ENTRY at depth %d for key ", d); print_key(key,d);
+				} else {
+					free(s->value);
+					printf("   ::: lpm_remove removed the VALUE at depth %d for key ", d); print_key(key,d);
+				}
+				s = NULL;
+			} else {
+				s = s->child;
+			}
+		}
+	}
+	return 0;
+}
+
+// This function deletes ALL entries that has a matching masked key.
+//PARAM t: pointer to a lookup table
+//PARAM key: a pointer to an array of bytes, which is used for identifying the entries
+//RETURNS: 0 if there were no errors
+int
+ternary_remove (lookup_table_t* t, uint8_t* key)
+{
+	table_entry_t* s = t->table;
+	table_entry_t* q = NULL;
+	while ( s ) {
+		int c = compare_ternary_keys(key,s->key,t->key_size,s->mask);
+		if ( c != 0 ) {
+			q = s;
+			s = s->next;
+		} else {
+			if (q) {
+				q->next = s->next;
+			} else {
+				t->table = s->next;
+			}
+			free_entry(s);
+		}
+	}
+	return 0;
 }
 
 // Function for setting a lookup table's default action value,
@@ -323,7 +499,7 @@ table_setdefault(lookup_table_t* t, uint8_t* value)
 }
 
 // Function for comparing two keys of the same length, determining which key is smaller
-// Used by _lookup and _add functions
+// Used by exact and lpm functions
 //PARAM key1: the first key
 //PARAM key2: the second key
 //PARAM length: the length of the keys in bytes.
@@ -339,9 +515,44 @@ compare_keys(uint8_t* key1, uint8_t* key2, uint8_t length)
 		} else if(key1[i] > key2[i]) {
 			result = 1;
 		}
-			i++;
+		i++;
 	}
 	return result;
+}
+
+// Function for comparing two keys of the same length, determining which key is smaller
+// Used by ternary functions
+//PARAM key1: the first key
+//PARAM key2: the second key
+//PARAM length: the length of the keys in bytes.
+//PARAM mask: an array consisting of 0 and 255 values, matching the key in length
+//where the mask's value is 0 the key is inspected, while at 255 it isn't
+//RETURNS -1 is key1 is smaller, 1 if key2 is smaller, 0 if they match
+int
+compare_ternary_keys(uint8_t* key1, uint8_t* key2, uint8_t length, uint8_t* mask)
+{
+	int result = 0;
+	int i = 0;
+	while(i<length && result==0) {
+		//if the mask is null, there is no mask
+		if ( !mask || mask[i] == 0 ) {
+			if (key1[i] < key2[i]) {
+				result = -1;
+			} else if(key1[i] > key2[i]) {
+				result = 1;
+			}
+		}
+		i++;
+	}
+	return result;
+}
+
+// Function which is called within the P4 switch, in order to use the controller.
+// Redirects to the digest callback function.
+void
+generate_digest (backend bg, char* name, int receiver, struct type_field_list* digest_field_list)
+{
+	bg->pdc(bg->t,name,receiver,digest_field_list);	
 }
 
 // Function to be called after init_dataplane.
@@ -370,12 +581,13 @@ get_outport(packet_descriptor_t* p)
 void
 print_key(uint8_t* key, int n)
 {
+	printf("[");
 	int i;
-	for (i=0;i<n;i++){
+	for (i=0;i<n-1;i++){
 		//printf("%02x ", key[i]);
-		printf("%d", key[i]);
+		printf("%d,", key[i]);
 	}
-	printf("\n");
+	printf("%d]\n", key[n-1]);
 }
 
 void
