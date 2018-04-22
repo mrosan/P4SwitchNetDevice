@@ -27,7 +27,7 @@
 //
 // - CBR/UDP flows from n0 to n1 and from n3 to n0
 // - DropTail queues
-// - Tracing of queues and packet receptions to file "openflow-switch.tr"
+// - Tracing of queues and packet receptions to file "test-switch-l3.tr"
 // - If order of adding nodes and netdevices is kept:
 //      n0 = 00:00:00;00:00:01, n1 = 00:00:00:00:00:03, n3 = 00:00:00:00:00:07
 //	and port number corresponds to node number, so port 0 is connected to n0, for example.
@@ -40,7 +40,6 @@
 #include "ns3/csma-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/applications-module.h"
-//#include "ns3/openflow-module.h"
 #include "ns3/log.h"
 
 extern "C"
@@ -244,19 +243,19 @@ main (int argc, char *argv[])
 
   //
   // Configure tracing of all enqueue, dequeue, and NetDevice receive events.
-  // Trace output will be sent to the file "openflow-switch.tr"
+  // Trace output will be sent to the file "test-switch-l3.tr"
   //
   AsciiTraceHelper ascii;
-  csma.EnableAsciiAll (ascii.CreateFileStream ("openflow-switch.tr"));
+  csma.EnableAsciiAll (ascii.CreateFileStream ("test-switch-l3.tr"));
 
   //
   // Also configure some tcpdump traces; each interface will be traced.
   // The output files will be named:
-  //     openflow-switch-<nodeId>-<interfaceId>.pcap
+  //     test-switch-l3-<nodeId>-<interfaceId>.pcap
   // and can be read by the "tcpdump -r" command (use "-tt" option to
   // display timestamps correctly)
   //
-  csma.EnablePcapAll ("openflow-switch", false);
+  csma.EnablePcapAll ("test-switch-l3", false);
 
   //
   // Now, do the actual simulation.

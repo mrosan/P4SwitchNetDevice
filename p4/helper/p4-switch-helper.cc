@@ -28,7 +28,7 @@ NetDeviceContainer
 P4SwitchHelper::Install (Ptr<Node> node, NetDeviceContainer c, int (*init_tables_callback)(lookup_table_t**), int (*p4_msg_digest_callback)(lookup_table_t** t, char* name, int receiver, struct type_field_list* digest_field_list))
 {
   NS_LOG_FUNCTION_NOARGS ();
-  NS_LOG_INFO ("**** Install switch device on node " << node->GetId ());
+  NS_LOG_INFO ("Installing switch device on node " << node->GetId () << ".");
 
   NetDeviceContainer devs;
   
@@ -52,7 +52,7 @@ P4SwitchHelper::Install (Ptr<Node> node, NetDeviceContainer c, int (*init_tables
   
   for (NetDeviceContainer::Iterator i = c.Begin (); i != c.End (); ++i)
     {
-      NS_LOG_INFO ("**** Add SwitchPort " << *i);
+      NS_LOG_INFO ("Adding SwitchPort " << *i << ".");
       dev->AddSwitchPort (*i);
     }
   

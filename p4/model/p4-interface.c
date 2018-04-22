@@ -8,7 +8,7 @@ create_tables (lookup_table_t** t)
 {
 	int i;
 	for (i=0; i<NB_TABLES; i++) {
-		printf(" *** Setting properties for table %d\n",i);
+		printf("Setting properties for table %d.\n",i);
 		//setting table properties that are defined in table.c
 		t[i] = (lookup_table_t *) malloc(sizeof(lookup_table_t));
 		t[i]->id = table_config[i].id;
@@ -59,6 +59,7 @@ free_entries (table_entry_t* e)
 		free_entries(e->next);
 		free_entries(e->child);
 		free_entry(e);
+		//e = NULL;
 	}
 }
 
@@ -159,12 +160,14 @@ lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value)
 			//see if we already have a matching table_entry on this depth
 			while ( p && !match_on_this_depth ) {
 				int c = compare_keys(p->key,key,d);
-				if ( c < 0 ) {				// haven't found matching entry at this depth yet
+				if ( c < 0 ) {
+					printf("~~~ lpm_add: haven't found yet any matching entry at depth %d\n",d);
 					q = p;
 					p = p->next;
-				} else if ( c > 0 ) {		// certainly won't find matching entry on this depth
+				} else if ( c > 0 ) {
+					printf("~~~ lpm_add: matching entry doesn't exist at depth %d\n",d);
 					p = NULL;
-				} else {					// found a matching entry
+				} else {
 					printf("~~~ lpm_add: found matching entry at depth %d\n",d);
 					match_on_this_depth = 1;
 					res = p;
@@ -191,34 +194,37 @@ lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value)
 				s->child = NULL;
 				s->value = NULL;
 				//then link it to the tree
-				if ( res ) { //if the tree wasn't empty	
-					// new entry comes after pointer q,
-					// but we have to determine
-					// whether it is the "child" of q,
-					// or the "next" of q
-					if ( *(res->mask) == *(q->mask) ) { 	// p is one depth lower than q (p can be NULL, though)
+				if ( res ) { // if the new entry's depth isn't 1
+					// new entry comes after pointer q, but we have to determine
+					// whether it is the "child" of q, or the "next" of q
+					if ( *(res->mask) == *(q->mask) ) {
+						s->next = q->child;
 						q->child = s;
-					} else {								// p is on the same level as q (p can be NULL, though)
+					} else {
+						s->next = q->next;
 						q->next = s;
 					}
-					s->next = p;						
-				} else { //if the tree was empty
-					t->table = s;
-					q = s;
-					p = s->child; //NULL
+				} else { // if the new entry's depth is 1
+					if ( q ) { // if it doesn't go to the very first position
+						s->next = q->next;
+						q->next = s;
+					} else {
+						t->table = s;
+					}
 				}
+				q = s;
 				res = s;
-				printf("~~~ lpm_add: added entry on level %d with key ",d);	print_key(res->key,d);
+				printf("~~~ lpm_add: created entry on level %d with key ",d);	print_key(res->key,d);
 			}
 			d++;
 		}
 				
 		//finally (once we reached the desired depth) assign value
 		if ( res->value ) {
-			printf("~~~ lpm_add: Value already exists at this entry! Overwriting value...\n");
+			printf("~~~ lpm_add: value already exists at this entry! Overwriting value...\n");
 			free(res->value);
 		} else {
-			printf("~~~ lpm_add: Adding value to the entry.\n");
+			printf("~~~ lpm_add: added value to the entry.\n");
 		}
 		res->value = (uint8_t*)malloc(t->val_size);
 	    memcpy(res->value, value, t->val_size);
@@ -311,7 +317,7 @@ exact_lookup (lookup_table_t* t, uint8_t* key)
 	if(res) {
 		printf("   ::: exact_lookup was successful with value %d and key ",*res); print_key(key,t->key_size); 	
 	} else {
-		printf("   ::: exact_lookup didn't find match for key "); print_key(key,t->key_size);
+		printf("   ::: exact_lookup returning with default_value for key "); print_key(key,t->key_size);
 		res = t->default_val;
 	}	
 
@@ -325,26 +331,25 @@ exact_lookup (lookup_table_t* t, uint8_t* key)
 uint8_t*
 lpm_lookup (lookup_table_t* t, uint8_t* key)
 {
-	//printf("   ::: lpm_lookup beginning the search with key "); print_key(key,t->key_size);
 	printf("Performing lpm_lookup with key "); print_key(key,t->key_size);
 	
 	table_entry_t* s = t->table;
 	uint8_t* res = NULL;
 	// parse tree until either there's no match on the current depth, or we reach the "bottom"
 	while ( s ) {
-		int d = *(s->mask);
+		int d = *(s->mask); // mask at lpm trees is only a number
 		int c = compare_keys(s->key,key,d);
 		if ( c < 0 ) {
-			printf("   ::: lpm_lookup haven't found yet a match at depth %d for key ", d); print_key(s->key,d);
+			printf("   ::: lpm_lookup: searching for a match at depth %d for key ", d); print_key(s->key,d);
 			s = s->next;
 		} else if ( c > 0 ) {
-			printf("   ::: lpm_lookup will not find a match at depth %d for key ", d); print_key(s->key,d);
+			printf("   ::: lpm_lookup: no match exists at depth %d for key ", d); print_key(s->key,d);
 			s = NULL;
 		} else {
-			printf("   ::: lpm_lookup found a matching entry at depth %d for key ", d); print_key(s->key,d);
+			printf("   ::: lpm_lookup: matching entry at depth %d for key ", d); print_key(s->key,d);
 			if (s->value) {
 				res = s->value;
-				printf("   ::: lpm_lookup found value %d belonging to this entry", *s->value);
+				printf("   ::: lpm_lookup: found value %d belonging to this entry \n", *s->value);
 			}
 			s = s->child;
 		}
@@ -353,7 +358,7 @@ lpm_lookup (lookup_table_t* t, uint8_t* key)
 	// if we never assigned value to the result while we parsed the tree, assign default value
 	if (!res) {
 		res = t->default_val;
-		printf("   ::: lpm_lookup assigned the default value.\n");
+		printf("   ::: lpm_lookup returning with default value\n");
 	}
 		
 	return res;
@@ -431,34 +436,51 @@ int
 lpm_remove (lookup_table_t* t, uint8_t* key, uint8_t prefix_length)
 {
 	uint8_t depth = prefix_length/8;
-	table_entry_t* s = t->table;
-	while ( s ) {
-		int d = *(s->mask);
-		int c = compare_keys(s->key,key,d);
-		if ( c < 0 ) {
-			s = s->next;
-		} else if ( c > 0 ) {
-			s = NULL;
-		} else {
-			if (d == depth) {
-				// Entries can only safely deleted if it doesnt have any child and/or neighbour.
-				// If that's the case, only the value will be removed.
-				//		This is a simple, but not perfect solution: it might leave hanging value-free entries,
-				//		because the neighbour-pointers aren't bidirectional. (They will be cleared up only at the end.)
-				if( !s->child && !s->next ) {
-					free_entry(s);
-					printf("   ::: lpm_remove removed the ENTRY at depth %d for key ", d); print_key(key,d);
-				} else {
-					free(s->value);
-					printf("   ::: lpm_remove removed the VALUE at depth %d for key ", d); print_key(key,d);
-				}
+	if ( 0 < depth && depth <= t->key_size ) {
+		table_entry_t* s = t->table;
+		table_entry_t* q = NULL;
+		while ( s ) {
+			int d = *(s->mask); // mask at lpm trees is only a number
+			int c = compare_keys(s->key,key,d);
+			if ( c < 0 ) {
+				q = s;
+				s = s->next;
+			} else if ( c > 0 ) {
 				s = NULL;
 			} else {
-				s = s->child;
+				if (d == depth) {
+					// Entries can only safely deleted if it doesnt have any child.
+					// If that's the case, only the value will be removed.
+					if( !s->child ) {
+						if (q) {
+							if ( *(s->mask) == *(q->mask) ) {
+								q->next = s->next;
+							} else {
+								q->child = s->next;
+							}
+						} else {
+							t->table = s->next;
+						}
+						free_entry(s);
+						printf("   ::: lpm_remove removed the ENTRY at depth %d for key ", d); print_key(key,d);
+					} else {
+						if (s->value){
+							free(s->value);
+							s->value = NULL;
+							printf("   ::: lpm_remove removed the VALUE at depth %d for key ", d); print_key(key,d);
+						}
+					}
+					s = NULL;
+				} else {
+					q = s;
+					s = s->child;
+				}
 			}
 		}
+		return 0;
+	} else {
+		return 1;
 	}
-	return 0;
 }
 
 // This function deletes ALL entries that has a matching masked key.
@@ -482,6 +504,7 @@ ternary_remove (lookup_table_t* t, uint8_t* key)
 				t->table = s->next;
 			}
 			free_entry(s);
+			s = NULL;
 		}
 	}
 	return 0;
@@ -588,6 +611,24 @@ print_key(uint8_t* key, int n)
 		printf("%d,", key[i]);
 	}
 	printf("%d]\n", key[n-1]);
+}
+
+// This function was used for debugging, it prints the keys within an lpm tree.
+void
+print_lpm_tree(table_entry_t* t)
+{
+	if( t ) {
+		print_key(t->key, *(t->mask));
+		
+		printf("next: ");
+		print_lpm_tree(t->next);
+		
+		printf("child: ");
+		print_lpm_tree(t->child);
+		
+	} else {
+		printf("NULL\n");
+	}
 }
 
 void

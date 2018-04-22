@@ -98,7 +98,7 @@ extern lookup_table_t table_config[NB_TABLES];
 void set_fake_backend (lookup_table_t** t, int (*p4_msg_digest_callback)(lookup_table_t** t, char* name, int receiver, struct type_field_list* digest_field_list));
 void create_tables (lookup_table_t** t);
 void delete_tables (lookup_table_t** t);
-void free_entries (table_entry_t* t);
+void free_entries (table_entry_t* e);
 void free_entry (table_entry_t* e);
 void table_setdefault (lookup_table_t* t, uint8_t* value);
 
@@ -124,6 +124,7 @@ void handle_packet(packet_descriptor_t* packet, lookup_table_t** tables);
 //Utility functions
 void debug(char* str, ...);
 void print_key(uint8_t* key, int n);
+void print_lpm_tree(table_entry_t* t);
 int get_outport(packet_descriptor_t* p);
 int compare_keys(uint8_t* key1, uint8_t* key2, uint8_t length);
 int compare_ternary_keys(uint8_t* key1, uint8_t* key2, uint8_t length, uint8_t* mask);

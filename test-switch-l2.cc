@@ -27,7 +27,7 @@
 //
 // - CBR/UDP flows from n0 to n1 and from n3 to n0
 // - DropTail queues
-// - Tracing of queues and packet receptions to file "openflow-switch.tr"
+// - Tracing of queues and packet receptions to file "test-switch-l2.tr"
 // - If order of adding nodes and netdevices is kept:
 //      n0 = 00:00:00;00:00:01, n1 = 00:00:00:00:00:03, n3 = 00:00:00:00:00:07
 //	and port number corresponds to node number, so port 0 is connected to n0, for example.
@@ -40,7 +40,6 @@
 #include "ns3/csma-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/applications-module.h"
-//#include "ns3/openflow-module.h"
 #include "ns3/log.h"
 
 extern "C"
@@ -49,64 +48,63 @@ extern "C"
 }
 
 extern int exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value);
- 
-    int
-    init_tables_v1(lookup_table_t** t)
-    {			  
-      //set default smac action    
-	      struct smac_action def_smac_action;
-	      def_smac_action.action_id = 0; //action_mac_learn
-		    memcpy(t[0]->default_val, (uint8_t*)&def_smac_action, sizeof(struct smac_action));
 
-      //set default dmac action
-		    struct action_forward_params param;
-		    param.port[0] = 100; param.port[1] = 0;
-		    struct dmac_action def_dmac_action;	
-		    def_dmac_action.action_id = 3; //action_bcast
-		    def_dmac_action.forward_params = param;
-		    memcpy(t[1]->default_val, (uint8_t*)&def_dmac_action, sizeof(struct dmac_action));
-	      
-	    //add broadcast entry
-		    uint8_t key[6] = {255,255,255,255,255,255};
-		    struct action_forward_params bcast_param;
-		    bcast_param.port[0] = (uint8_t) BROADCAST_PORT;
-		    struct dmac_action dmac_action_val;	
-		    dmac_action_val.action_id = 3; //action_bcast
-		    dmac_action_val.forward_params = bcast_param;
-		    exact_add(t[1],key,(uint8_t*)&dmac_action_val);
-	    
-	      return 0;
+int
+init_tables_v1(lookup_table_t** t)
+{			  
+    //set default smac action    
+    struct smac_action def_smac_action;
+    def_smac_action.action_id = 0; //action_mac_learn
+    memcpy(t[0]->default_val, (uint8_t*)&def_smac_action, sizeof(struct smac_action));
+
+    //set default dmac action
+    struct action_forward_params param;
+    param.port[0] = 100; param.port[1] = 0;
+    struct dmac_action def_dmac_action;	
+    def_dmac_action.action_id = 3; //action_bcast
+    def_dmac_action.forward_params = param;
+    memcpy(t[1]->default_val, (uint8_t*)&def_dmac_action, sizeof(struct dmac_action));
+
+    //add broadcast entry
+    uint8_t key[6] = {255,255,255,255,255,255};
+    struct action_forward_params bcast_param;
+    bcast_param.port[0] = (uint8_t) BROADCAST_PORT;
+    struct dmac_action dmac_action_val;	
+    dmac_action_val.action_id = 3; //action_bcast
+    dmac_action_val.forward_params = bcast_param;
+    exact_add(t[1],key,(uint8_t*)&dmac_action_val);
+
+    return 0;
+}
+
+int 
+p4_msg_digest_v1(lookup_table_t** t, char* name, int receiver, struct type_field_list* digest_field_list)
+{
+    if(strcmp("mac_learn_digest",name)==0) {
+        //extract data
+        uint8_t* port;
+        uint8_t* mac;
+        mac = digest_field_list->field_offsets[0];
+        port = digest_field_list->field_offsets[1];
+        printf("     : Learned that port %d belongs to MAC address %02x:%02x:%02x:%02x:%02x:%02x \n",
+                                                      *port,mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+        //add SMAC entry
+        struct smac_action smac_action_val;
+        smac_action_val.action_id = 1; //action__nop
+        exact_add(t[0],mac,(uint8_t*)&smac_action_val);
+
+        //add DMAC entry				
+        struct action_forward_params param;
+        param.port[0] = *port; param.port[1] = 0;
+        struct dmac_action dmac_action_val;	
+        dmac_action_val.action_id = 2; //action_forward
+        dmac_action_val.forward_params = param;
+        exact_add(t[1],mac,(uint8_t*)&dmac_action_val);	
+    } else {
+        printf("Error: p4_msg_digest could not recognize the command.\n");
     }
-
-    int 
-    p4_msg_digest_v1(lookup_table_t** t, char* name, int receiver, struct type_field_list* digest_field_list)
-    {
-        if(strcmp("mac_learn_digest",name)==0) {
-			    //extract data
-				    uint8_t* port;
-				    uint8_t* mac;
-				    mac = digest_field_list->field_offsets[0];
-				    port = digest_field_list->field_offsets[1];
-				    printf("     : Learned that port %d belongs to MAC address %02x:%02x:%02x:%02x:%02x:%02x \n",
-				                                                  *port,mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
-			    //add SMAC entry
-					  struct smac_action smac_action_val;
-					  smac_action_val.action_id = 1; //action__nop
-					  exact_add(t[0],mac,(uint8_t*)&smac_action_val);
-			
-				  //add DMAC entry				
-					  struct action_forward_params param;
-					  param.port[0] = *port; param.port[1] = 0;
-					  struct dmac_action dmac_action_val;	
-					  dmac_action_val.action_id = 2; //action_forward
-					  dmac_action_val.forward_params = param;
-					  exact_add(t[1],mac,(uint8_t*)&dmac_action_val);	
-		    } else {
-			    printf("Error: p4_msg_digest could not recognize the command.\n");
-		    }
-        return 0;
-    }
-
+    return 0;
+}
 
 
 using namespace ns3;
@@ -248,19 +246,19 @@ main (int argc, char *argv[])
 
   //
   // Configure tracing of all enqueue, dequeue, and NetDevice receive events.
-  // Trace output will be sent to the file "openflow-switch.tr"
+  // Trace output will be sent to the file "test-switch-l2.tr"
   //
   AsciiTraceHelper ascii;
-  csma.EnableAsciiAll (ascii.CreateFileStream ("openflow-switch.tr"));
+  csma.EnableAsciiAll (ascii.CreateFileStream ("test-switch-l2.tr"));
 
   //
   // Also configure some tcpdump traces; each interface will be traced.
   // The output files will be named:
-  //     openflow-switch-<nodeId>-<interfaceId>.pcap
+  //     test-switch-l2-<nodeId>-<interfaceId>.pcap
   // and can be read by the "tcpdump -r" command (use "-tt" option to
   // display timestamps correctly)
   //
-  csma.EnablePcapAll ("openflow-switch", false);
+  csma.EnablePcapAll ("test-switch-l2", false);
 
   //
   // Now, do the actual simulation.

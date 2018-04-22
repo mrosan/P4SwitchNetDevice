@@ -27,7 +27,7 @@
 //
 // - CBR/UDP flows from n0 to n1 and from n3 to n0
 // - DropTail queues
-// - Tracing of queues and packet receptions to file "openflow-switch.tr"
+// - Tracing of queues and packet receptions to file "lookup-tables-test.tr"
 // - If order of adding nodes and netdevices is kept:
 //      n0 = 00:00:00;00:00:01, n1 = 00:00:00:00:00:03, n3 = 00:00:00:00:00:07
 //	and port number corresponds to node number, so port 0 is connected to n0, for example.
@@ -57,6 +57,7 @@ extern int exact_remove (lookup_table_t* t, uint8_t* key);
 extern int lpm_remove (lookup_table_t* t, uint8_t* key, uint8_t prefix_length );
 extern int ternary_remove (lookup_table_t* t, uint8_t* key);
 extern void free_entries (table_entry_t* t);
+extern void print_lpm_tree(table_entry_t* t);
  
 int
 init_tables_v1(lookup_table_t** t)
@@ -86,49 +87,69 @@ init_tables_v1(lookup_table_t** t)
     //--------------------------TESTING------------------------------
     //we can treat the smac table as if it was an lpm-type table
     
+    printf("\n   <------------>\n     EXACT tests \n   <------------>\n");
     
-    printf("\n----> LPM tests <----\n");
+    
+    
+    
+    free_entries(t[0]->table);
+    
+    printf("\n   <------------>\n      LPM tests \n   <------------>\n");
     
     uint8_t key0[6] = {10,1,0,0,0,0};
     //uint8_t port[2] = {0,0};
     //uint8_t mac[6] = {0,0,0,0,0,42};
     struct smac_action test_smac;
-    def_smac_action.action_id = 42;
+    test_smac.action_id = 42;
 
-    printf("\n>>> Add a value at depth 2\n");
-    lpm_add(t[0],key0,16,(uint8_t*)&test_smac);
-    printf("\n>>> Add a different value with the same key at the same depth (overwrite)\n");
-    def_smac_action.action_id = 24;
-    lpm_add(t[0],key0,16,(uint8_t*)&test_smac);
-    printf("\n>>> Add more values with the same key, but at different depths\n");
-    def_smac_action.action_id = 10;
-    lpm_add(t[0],key0,8,(uint8_t*)&test_smac);
-    def_smac_action.action_id = 11;
-    lpm_add(t[0],key0,24,(uint8_t*)&test_smac);
-
-    //create different keys for further testing
     uint8_t key1[6] = {10,1,1,1,0,0};
     uint8_t key2[6] = {10,1,1,0,0,0};
     uint8_t key3[6] = {10,1,1,2,0,0};
     uint8_t key4[6] = {10,1,0,0,0,0};
     uint8_t key5[6] = {45,1,45,1,0,0};
-    //uint8_t key6[6] = {0,0,1,1,0,0};
+    uint8_t key6[6] = {0,0,1,1,0,0};
     uint8_t key7[6] = {60,0,1,1,0,0};
     uint8_t key8[6] = {45,1,45,0,0,0};
     uint8_t key9[6] = {45,1,45,2,0,0};
+    uint8_t key10[6] = {45,1,45,1,5,0};
     
-    printf("\n>>> branch out on the first level, though prefix is for second level\n");
+    printf("\n-------> Add a value to the empty tree, but then remove it right away.\n");
+    lpm_add(t[0],key6,16,(uint8_t*)&test_smac);
+    lpm_remove(t[0],key6,16);
+    lpm_remove(t[0],key6,8);
+    
+    printf("\n-------> Search for not-existing key in the (empty) tree.\n");
+    lpm_lookup(t[0],key6);
+    
+    print_lpm_tree(t[0]->table);
+    
+    printf("\n-------> Add a value at depth 2\n");
+    lpm_add(t[0],key0,16,(uint8_t*)&test_smac);
+    printf("\n-------> Add a different value with the same key at the same depth (overwrite)\n");
+    test_smac.action_id = 24;
+    lpm_add(t[0],key0,16,(uint8_t*)&test_smac);
+    
+    printf("\n-------> Look up the previous key -- the entry should contain the new value.\n");
+    lpm_lookup(t[0],key0);
+    
+    printf("\n-------> Add more values with the same key, but at different depths\n");
+    test_smac.action_id = 10;
+    lpm_add(t[0],key0,8,(uint8_t*)&test_smac);
+    test_smac.action_id = 11;
+    lpm_add(t[0],key0,24,(uint8_t*)&test_smac);
+    
+    printf("\n-------> branch out on the first level\n");
     // ("creating neighbours" test)
-    def_smac_action.action_id = 200;
-    lpm_add(t[0],key7,16,(uint8_t*)&test_smac);
+    test_smac.action_id = 200;
+    lpm_add(t[0],key7,16,(uint8_t*)&test_smac);    
 
-    printf("\n>>> set values on the lower levels, the keys aren't in ascending order\n");
+    printf("\n-------> set values on the lower levels, the keys aren't in ascending order\n");
     // ("ordering entries" test)
-    def_smac_action.action_id = 101;
+    test_smac.action_id = 101;
     lpm_add(t[0],key5,32,(uint8_t*)&test_smac);
-    def_smac_action.action_id = 100;
+    test_smac.action_id = 100;
     lpm_add(t[0],key8,32,(uint8_t*)&test_smac);
-    def_smac_action.action_id = 102;
+    test_smac.action_id = 102;
     lpm_add(t[0],key9,32,(uint8_t*)&test_smac);
     
     /* This is how the LPM tree should look like now:
@@ -148,29 +169,91 @@ init_tables_v1(lookup_table_t** t)
     */
 
     //lookup tests
-    printf("\n>>> test with key {10,1,1,1,0,0}\n");
+    printf("\n-------> test with key {10,1,1,1,0,0}\n");
     lpm_lookup(t[0],key1);
-    printf("\n>>> test with key {10,1,1,0,0,0}\n");
+    printf("\n-------> test with key {10,1,1,0,0,0}\n");
     lpm_lookup(t[0],key2);
-    printf("\n>>> test with key {10,1,1,2,0,0}\n");
+    printf("\n-------> test with key {10,1,1,2,0,0}\n");
     lpm_lookup(t[0],key3);
-    printf("\n>>> test with key {10,1,0,0,0,0}\n");
+    printf("\n-------> test with key {10,1,0,0,0,0}\n");
     lpm_lookup(t[0],key4);
-    printf("\n>>> test with key {0,1,45,0,0,0}\n");
+    printf("\n-------> test with key {45,1,45,0,0,0}\n");
+    lpm_lookup(t[0],key8);
+    printf("\n-------> test with key {45,1,45,1,0,0}\n");
     lpm_lookup(t[0],key5);
+    printf("\n-------> test with key {45,1,45,2,0,0}\n");
+    lpm_lookup(t[0],key9);
     
-/*
-    //another test (overwrite exact_add)
-    uint8_t k[2] = {1,0};
-    uint8_t smac[6] = {0,0,0,0,0,5};
-    struct action_rewrite_src_mac_params param2;
-    memcpy(param2.smac,smac,sizeof(param2.smac));
-    struct sendout_action action_val;	
-    action_val.action_id = 2; //action_rewrite_src_mac
-    action_val.rewrite_src_mac_params = param2;
-    exact_add(t[1],k,(uint8_t*)&action_val);
-*/
+    
+    print_lpm_tree(t[0]->table);
+    
+    //add two more just to make it more complicated
+    lpm_add(t[0],key10,40,(uint8_t*)&test_smac);
+    lpm_add(t[0],key5,40,(uint8_t*)&test_smac);
+    
+    
+    printf("\n-------> remove various values\n");
+    lpm_remove(t[0],key9,32);
+    lpm_remove(t[0],key5,32);
+    lpm_remove(t[0],key5,32);
+    lpm_remove(t[0],key5,16);
+    lpm_remove(t[0],key6,32);
+    lpm_remove(t[0],key0,24);
+    lpm_remove(t[0],key0,16);
+    lpm_remove(t[0],key0,8);
+    
+    print_lpm_tree(t[0]->table);
+    
+    free_entries(t[0]->table);
+    t[0]->table = NULL; // important if we still want to use the table after this!
+    
+    printf("\n   <------------>\n     TERNARY tests \n   <------------>\n");
+  
+    //uint8_t mask1[6] = {255,0,0,0,0,0};
+    //uint8_t mask2[6] = {255,255,0,0,0,0};
+    //uint8_t mask3[6] = {255,0,255,255,0,0};
+    uint8_t mask4[6] = {255,0,255,255,255,255};
+    uint8_t mask5[6] = {0,0,0,255,0,0};
+    
+    /*
+    uint8_t key1[6] = {10,1,1,1,0,0};
+    uint8_t key2[6] = {10,1,1,0,0,0};
+    uint8_t key3[6] = {10,1,1,2,0,0};
+    uint8_t key4[6] = {10,1,0,0,0,0};
+    uint8_t key5[6] = {45,1,45,1,0,0};
+    uint8_t key6[6] = {0,0,1,1,0,0};
+    uint8_t key7[6] = {60,0,1,1,0,0};
+    uint8_t key8[6] = {45,1,45,0,0,0};
+    uint8_t key9[6] = {45,1,45,2,0,0};
+    uint8_t key10[6] = {45,1,45,1,5,0};*/
+    
+    printf("\n-------> adding key {10,1,1,1,0,0} with mask {0,0,0,255,0,0}\n");
+    ternary_add(t[0],key1,mask5,(uint8_t*)&test_smac);
+    printf("\n-------> adding key {10,1,1,2,0,0} with mask {0,0,0,255,0,0}\n");
+    ternary_add(t[0],key3,mask5,(uint8_t*)&test_smac);
+    printf("\n-------> adding key {10,1,1,0,0,0} with mask {0,0,0,255,0,0}\n");
+    test_smac.action_id = 4;
+    ternary_add(t[0],key2,mask5,(uint8_t*)&test_smac);
+    
+    printf("\n-------> lookup with key {10,1,1,1,0,0}\n");
+    ternary_lookup(t[0],key2);
+    
+    
+    printf("\n-------> removing them with key {10,1,1,1,0,0}\n");
+    ternary_remove(t[0],key1);
+    printf("\n-------> table should be empty now\n");
+    print_lpm_tree(t[0]->table);
+    
+    printf("\n-------> adding key {10,1,1,0,0,0} with mask {255,0,255,255,255,255};\n");
+    ternary_add(t[0],key2,mask4,(uint8_t*)&test_smac);
+    printf("\n-------> adding key {60,0,1,1,0,0} with mask {255,0,255,255,255,255};\n");
+    test_smac.action_id = 12;
+    ternary_add(t[0],key7,mask4,(uint8_t*)&test_smac);
+    printf("\n-------> lookup with key {10,1,1,1,0,0}\n");
+    ternary_lookup(t[0],key2);
 
+
+    printf("\n");
     return 0;
 }
 
@@ -342,19 +425,19 @@ main (int argc, char *argv[])
 
   //
   // Configure tracing of all enqueue, dequeue, and NetDevice receive events.
-  // Trace output will be sent to the file "openflow-switch.tr"
+  // Trace output will be sent to the file "lookup-tables-test.tr"
   //
   AsciiTraceHelper ascii;
-  csma.EnableAsciiAll (ascii.CreateFileStream ("openflow-switch.tr"));
+  csma.EnableAsciiAll (ascii.CreateFileStream ("lookup-tables-test.tr"));
 
   //
   // Also configure some tcpdump traces; each interface will be traced.
   // The output files will be named:
-  //     openflow-switch-<nodeId>-<interfaceId>.pcap
+  //     lookup-tables-test-<nodeId>-<interfaceId>.pcap
   // and can be read by the "tcpdump -r" command (use "-tt" option to
   // display timestamps correctly)
   //
-  csma.EnablePcapAll ("openflow-switch", false);
+  csma.EnablePcapAll ("lookup-tables-test", false);
 
   //
   // Now, do the actual simulation.

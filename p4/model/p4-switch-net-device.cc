@@ -45,7 +45,7 @@ P4SwitchNetDevice::~P4SwitchNetDevice ()
 int
 P4SwitchNetDevice::SetCallbackFunctions( int (*init_tables_callback)(lookup_table_t**), int (*p4_msg_digest_callback)(lookup_table_t** t, char* name, int receiver, struct type_field_list* digest_field_list) )
 {
-  std::cout << "\nSETTING CALLBACK FUNCTIONS\n" << std::endl;
+  NS_LOG_INFO ("Setting callback functions.");
   init_tables_callback(m_tables);
   m_digest = p4_msg_digest_callback;
   return 0;
@@ -136,7 +136,7 @@ P4SwitchNetDevice::ReceiveFromDevice (Ptr<NetDevice> netdev, Ptr<const Packet> p
               {
                 NS_LOG_INFO("Error occurred at HandlePacket."); 
               }
-              else NS_LOG_INFO("Returned from HandlePacket without error.");  
+              //else NS_LOG_INFO("Returned from HandlePacket without error.");  
             }
         }
         break;
@@ -196,7 +196,7 @@ P4SwitchNetDevice::HandlePacket(Ptr<const Packet> packet, const Address& src, co
     {
       if (m_ports[i].second == port)
       {
-          NS_LOG_INFO ("### SENDING packet#" << packet->GetUid () << " OVER PORT " << port <<".");
+          NS_LOG_INFO ("Sending packet " << packet->GetUid () << " over port " << port <<".");
           m_ports[i].first->SendFrom(packet->Copy (),src,dst,protocol);
           found = true;
       }
@@ -204,7 +204,7 @@ P4SwitchNetDevice::HandlePacket(Ptr<const Packet> packet, const Address& src, co
     }
     if (!found)
     {
-      NS_LOG_INFO("ERROR: The port number received from the lookup doesn't exist.");
+      NS_LOG_ERROR("ERROR: The port number received from the lookup doesn't exist.");
       return 1;
     }
     
@@ -233,11 +233,15 @@ P4SwitchNetDevice::BufferFromPacket (packet_descriptor_t* pd, Ptr<const Packet> 
   //std::cout << "Maximum Transmission Unit: " << mtu << ", Packet's size: " << s << std::endl;
   
   uint8_t dataBuf[mtu];
+  packet->Serialize (dataBuf, mtu);
+  /*
   if ( packet->Serialize (dataBuf, mtu) )
   {
-    std::cout << "Serialize successful!" << std::endl;
-  } else std::cout << "Serialize UNsuccessful!" << std::endl;
-  
+    NS_LOG_INFO ("Serialize successful!");
+  } else {
+    NS_LOG_ERROR "Serialize unsuccessful!");
+  }
+  */
   size_t size = 2 * ETH_ADDR_LEN + ETH_TYPE_LEN + mtu;
   pd->data = new uint8_t[size];
  
@@ -367,21 +371,17 @@ P4SwitchNetDevice::Send (Ptr<Packet> packet, const Address& dest, uint16_t proto
 }
 
 
-//TODO
 bool
 P4SwitchNetDevice::SendFrom (Ptr<Packet> packet, const Address& src, const Address& dest, uint16_t protocolNumber)
 {
   NS_LOG_FUNCTION_NOARGS ();
-  //https://www.nsnam.org/doxygen/group__packet.html#ga82af509915aa0f97f81f806f2286937c
-  //https://www.nsnam.org/doxygen/classns3_1_1_net_device.html#ad5e5e1ca187472bc2ba99575d8def568
   
-  //ReceiveFromDevice (Ptr<NetDevice> netdev, Ptr<const Packet> packet, uint16_t protocol, 
-  //                    const Address& src, const Address& dst, PacketType packetType)
-
+  //ReceivefromDevice parameters:
+  //(Ptr<NetDevice> netdev, Ptr<const Packet> packet, uint16_t protocol, const Address& src, const Address& dst, PacketType packetType)
   ReceiveFromDevice(this,packet,protocolNumber,src,dest,PACKET_OTHERHOST);
 
-  //return true;  
-  return false;
+  return true;  
+  //return false;
   
 }
 
@@ -425,9 +425,8 @@ bool
 P4SwitchNetDevice::SupportsSendFrom () const
 {
   NS_LOG_FUNCTION_NOARGS ();
-  //TODO
-  //return true;
-  return false;
+  return true;
+  //return false;
 }
 
 Address
