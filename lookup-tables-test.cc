@@ -85,16 +85,9 @@ init_tables_v1(lookup_table_t** t)
     exact_add(t[1],key,(uint8_t*)&dmac_action_val);
 
     //--------------------------TESTING------------------------------
-    //we can treat the smac table as if it was an lpm-type table
+    // use smac table for testing purposes
     
     printf("\n   <------------>\n     EXACT tests \n   <------------>\n");
-    
-    
-    
-    
-    free_entries(t[0]->table);
-    
-    printf("\n   <------------>\n      LPM tests \n   <------------>\n");
     
     uint8_t key0[6] = {10,1,0,0,0,0};
     //uint8_t port[2] = {0,0};
@@ -112,6 +105,52 @@ init_tables_v1(lookup_table_t** t)
     uint8_t key8[6] = {45,1,45,0,0,0};
     uint8_t key9[6] = {45,1,45,2,0,0};
     uint8_t key10[6] = {45,1,45,1,5,0};
+    
+    printf("\n-------> Add a value to the empty table, then remove it right away.\n");
+    exact_add(t[0],key0,(uint8_t*)&test_smac);
+    exact_remove(t[0],key0);
+    printf("\n-------> Lookup for removed value:");
+    exact_lookup(t[0],key0);
+    
+    printf("\n-------> Add a value to different positions of the table.\n");
+    exact_add(t[0],key0,(uint8_t*)&test_smac);
+    exact_add(t[0],key1,(uint8_t*)&test_smac);
+    exact_add(t[0],key2,(uint8_t*)&test_smac);
+    exact_add(t[0],key3,(uint8_t*)&test_smac);
+    exact_add(t[0],key6,(uint8_t*)&test_smac);
+    exact_add(t[0],key5,(uint8_t*)&test_smac);
+    exact_add(t[0],key10,(uint8_t*)&test_smac);
+    
+    printf("\n-------> Overwrite an existing value within the table.\n");
+    test_smac.action_id = 11;
+    exact_add(t[0],key3,(uint8_t*)&test_smac);
+    
+    printf("\n-------> Check it with lookup.\n");
+    exact_lookup(t[0],key3);
+    
+    printf("\n-------> Lookup different positions of the table, lookup non-entries.\n");
+    exact_lookup(t[0],key8);
+    exact_lookup(t[0],key2);
+    exact_lookup(t[0],key0);
+    exact_lookup(t[0],key1);
+    
+    printf("\n-------> Remove entries, and try to remove non-entries.\n");
+    exact_remove(t[0],key0);
+    exact_remove(t[0],key7);
+    exact_remove(t[0],key1);
+    exact_remove(t[0],key5);
+    
+    printf("\n-------> Lookup again.\n");
+    exact_lookup(t[0],key5);
+    exact_lookup(t[0],key10);
+    
+    printf("\n-------> Free up everything for LPM tests.\n");
+    free_entries(t[0]->table);
+    t[0]->table = NULL;
+    
+    
+    printf("\n   <------------>\n      LPM tests \n   <------------>\n");
+    
     
     printf("\n-------> Add a value to the empty tree, but then remove it right away.\n");
     lpm_add(t[0],key6,16,(uint8_t*)&test_smac);

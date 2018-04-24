@@ -421,6 +421,7 @@ exact_remove (lookup_table_t* t, uint8_t* key)
 			}
 			free_entry(s);
 			s = NULL;
+			printf("   ::: exact_remove successful for key "); print_key(key,t->key_size);
 		}
 	}
 	return 0;

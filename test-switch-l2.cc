@@ -259,6 +259,8 @@ main (int argc, char *argv[])
   // display timestamps correctly)
   //
   csma.EnablePcapAll ("test-switch-l2", false);
+  //csma.EnablePcapAll ("test-switch-l2");
+  //another way to check them: $ tcpdump -nn -tt -r test-switch-l2-0-0.pcap
 
   //
   // Now, do the actual simulation.
