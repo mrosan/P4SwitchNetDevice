@@ -353,6 +353,11 @@ struct p4_add_table_entry* netconv_p4_add_table_entry(struct p4_add_table_entry*
 #define FIELD_BITCOUNT(pd, field) (field_desc(pd, field).bitwidth + field_desc(pd, field).bitoffset)
 
 #define FIELD_MASK(pd, field) field_desc(pd, field).mask
+//original FIELD_MASK:
+/*
+#define FIELD_MASK(pd, field) (field_desc(pd, field).fixed_width ? field_desc(pd, field).mask : \
+    rte_cpu_to_be_32((0xffffffff << (32 - FIELD_BITCOUNT(pd, field))) & (0xffffffff >> field_desc(pd, field).bitoffset)))
+*/
 
 #define FIELD_BYTES(pd, field) ( \
      field_desc(pd, field).bytecount == 1 ? (*(uint8_t*)  field_desc(pd, field).byte_addr) : \
@@ -373,7 +378,6 @@ struct p4_add_table_entry* netconv_p4_add_table_entry(struct p4_add_table_entry*
 
 // Modifies a field in the packet by the given source and length [ONLY BYTE ALIGNED]
 #define MODIFY_BYTEBUF_BYTEBUF(pd, dstfield, src, srclen) { \
-    /*TODO: If the src contains a signed negative value, then the following memset is incorrect*/ \
     memset(field_desc(pd, dstfield).byte_addr, 0, field_desc(pd, dstfield).bytewidth - srclen); \
     memcpy(field_desc(pd, dstfield).byte_addr + (field_desc(pd, dstfield).bytewidth - srclen), src, srclen); \
 }
@@ -434,9 +438,24 @@ struct p4_add_table_entry* netconv_p4_add_table_entry(struct p4_add_table_entry*
 }
 
 // Extracts a field to the given uint32_t variable with byte conversion (always) [MAX 4 BYTES]
+/*
 #define EXTRACT_INT32_NTOH(pd, field, dst) { \
     if(field_desc(pd, field).bytecount == 1) \
         dst =                  FIELD_MASKED_BYTES(pd, field)  >> (8  - FIELD_BITCOUNT(pd, field)); \
+    else if(field_desc(pd, field).bytecount == 2) \
+        dst = rte_be_to_cpu_16(FIELD_MASKED_BYTES(pd, field)) >> (16 - FIELD_BITCOUNT(pd, field)); \
+    else \
+        dst = rte_be_to_cpu_32(FIELD_MASKED_BYTES(pd, field)) >> (32 - FIELD_BITCOUNT(pd, field)); \
+}
+*/
+//NOTE: function rte_be_to_cpu_32 is omitted from this macro
+#define EXTRACT_INT32_NTOH(pd, field, dst) { \
+    if(field_desc(pd, field).bytecount == 1) \
+        dst =                  FIELD_MASKED_BYTES(pd, field)  >> (8  - FIELD_BITCOUNT(pd, field)); \
+    else if(field_desc(pd, field).bytecount == 2) \
+        dst = FIELD_MASKED_BYTES(pd, field) >> (16 - FIELD_BITCOUNT(pd, field)); \
+    else \
+        dst = FIELD_MASKED_BYTES(pd, field) >> (32 - FIELD_BITCOUNT(pd, field)); \
 }
 
 // Extracts a field to the given uint32_t variable with byte conversion when necessary [MAX 4 BYTES]

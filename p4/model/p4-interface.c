@@ -96,7 +96,7 @@ exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value)
 		} else if ( c > 0 ) {				// certainly won't find matching entry
 			match_possible = 0;
 		} else {							// found a matching entry
-			printf("~~~ exact_add: key already exists, overwriting value ~~~\n");
+			//printf("~~~ exact_add: key already exists, overwriting value ~~~\n");
 			free(p->value);
 			p->value = (uint8_t*)malloc(t->val_size);
 			memcpy(p->value, value, t->val_size);
@@ -161,14 +161,14 @@ lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value)
 			while ( p && !match_on_this_depth ) {
 				int c = compare_keys(p->key,key,d);
 				if ( c < 0 ) {
-					printf("~~~ lpm_add: haven't found yet any matching entry at depth %d\n",d);
+					//printf("~~~ lpm_add: haven't found yet any matching entry at depth %d\n",d);
 					q = p;
 					p = p->next;
 				} else if ( c > 0 ) {
-					printf("~~~ lpm_add: matching entry doesn't exist at depth %d\n",d);
+					//printf("~~~ lpm_add: matching entry doesn't exist at depth %d\n",d);
 					p = NULL;
 				} else {
-					printf("~~~ lpm_add: found matching entry at depth %d\n",d);
+					//printf("~~~ lpm_add: found matching entry at depth %d\n",d);
 					match_on_this_depth = 1;
 					res = p;
 					q = p;
@@ -214,17 +214,17 @@ lpm_add (lookup_table_t* t, uint8_t* key, uint8_t prefix_length, uint8_t* value)
 				}
 				q = s;
 				res = s;
-				printf("~~~ lpm_add: created entry on level %d with key ",d);	print_key(res->key,d);
+				//printf("~~~ lpm_add: created entry on level %d with key ",d);	print_key(res->key,d);
 			}
 			d++;
 		}
 				
 		//finally (once we reached the desired depth) assign value
 		if ( res->value ) {
-			printf("~~~ lpm_add: value already exists at this entry! Overwriting value...\n");
+			//printf("~~~ lpm_add: value already exists at this entry! Overwriting value...\n");
 			free(res->value);
 		} else {
-			printf("~~~ lpm_add: added value to the entry.\n");
+			//printf("~~~ lpm_add: added value to the entry.\n");
 		}
 		res->value = (uint8_t*)malloc(t->val_size);
 	    memcpy(res->value, value, t->val_size);
@@ -340,13 +340,13 @@ lpm_lookup (lookup_table_t* t, uint8_t* key)
 		int d = *(s->mask); // mask at lpm trees is only a number
 		int c = compare_keys(s->key,key,d);
 		if ( c < 0 ) {
-			printf("   ::: lpm_lookup: searching for a match at depth %d for key ", d); print_key(s->key,d);
+			printf("   ::: lpm_lookup: searching for a match at depth %d for key ", d); print_key(key,d);
 			s = s->next;
 		} else if ( c > 0 ) {
-			printf("   ::: lpm_lookup: no match exists at depth %d for key ", d); print_key(s->key,d);
+			printf("   ::: lpm_lookup: no match exists at depth %d for key ", d); print_key(key,d);
 			s = NULL;
 		} else {
-			printf("   ::: lpm_lookup: matching entry at depth %d for key ", d); print_key(s->key,d);
+			printf("   ::: lpm_lookup: matching entry at depth %d for key ", d); print_key(key,d);
 			if (s->value) {
 				res = s->value;
 				printf("   ::: lpm_lookup: found value %d belonging to this entry \n", *s->value);
@@ -642,10 +642,38 @@ debug (char* str,...)
 }
 
 uint16_t
-calculate_csum16(const void* buf, uint16_t length)
+calculate_csum16(const void* buf, uint16_t len)
 {
-	uint16_t value16 = 0;
-	return value16;
+	//uint16_t sum = 0;
+	uint32_t sum = 0;
+	
+	uintptr_t ptr = (uintptr_t)buf;
+	typedef uint16_t __attribute__((__may_alias__)) u16_p;
+	const u16_p *u16 = (const u16_p *)ptr;
+
+	while (len >= (sizeof(*u16) * 4)) {
+		sum += u16[0];
+		sum += u16[1];
+		sum += u16[2];
+		sum += u16[3];
+		len -= sizeof(*u16) * 4;
+		u16 += 4;
+	}
+	while (len >= sizeof(*u16)) {
+		sum += *u16;
+		len -= sizeof(*u16);
+		u16 += 1;
+	}
+	/* if length is in odd bytes */
+	if (len == 1)
+	{
+		sum += *((const uint8_t *)u16);
+	}
+		
+	sum = ((sum & 0xffff0000) >> 16) + (sum & 0xffff);
+	sum = ((sum & 0xffff0000) >> 16) + (sum & 0xffff);
+	
+	return (uint16_t) sum;
 }
 
 void exact_add_promote  (int tableid, uint8_t* key, uint8_t* value)

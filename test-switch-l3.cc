@@ -29,8 +29,10 @@
 // - DropTail queues
 // - Tracing of queues and packet receptions to file "test-switch-l3.tr"
 // - If order of adding nodes and netdevices is kept:
-//      n0 = 00:00:00;00:00:01, n1 = 00:00:00:00:00:03, n3 = 00:00:00:00:00:07
+//      n0 = 00:00:00:00:00:01, n1 = 00:00:00:00:00:03, n3 = 00:00:00:00:00:07
 //	and port number corresponds to node number, so port 0 is connected to n0, for example.
+//
+// - n0 = 10.1.1.1, n1 = 10.1.1.2, n2 = 10.1.1.3, n3 = 10.1.1.4
 
 #include <iostream>
 #include <fstream>
@@ -42,6 +44,17 @@
 #include "ns3/applications-module.h"
 #include "ns3/log.h"
 
+//ARP cache
+#include "ns3/node.h"
+#include "ns3/trace-source-accessor.h"
+#include "ns3/names.h"
+#include "ns3/node-list.h"
+#include "ns3/ipv4-l3-protocol.h"
+#include "ns3/object-vector.h"
+#include "ns3/pointer.h"
+#include "ns3/arp-cache.h"
+#include "ns3/arp-header.h"
+
 extern "C"
 {
   #include "ns3/p4-module.h"
@@ -49,6 +62,7 @@ extern "C"
 
 extern int exact_add (lookup_table_t* t, uint8_t* key, uint8_t* value);
 extern int lpm_add (lookup_table_t* t, uint8_t* key, uint8_t depth, uint8_t* value);
+extern void print_lpm_tree(table_entry_t* t);
 
 int
 init_tables_v1(lookup_table_t** t)
@@ -67,7 +81,7 @@ init_tables_v1(lookup_table_t** t)
     //add entries to lpm table
     uint8_t i;
     for (i=0; i<4; i++){
-		    uint8_t key[4] = {10,1,1,i};
+		    uint8_t key[4] = {10,1,1,(uint8_t)(i+1)};
 		    uint8_t port[2] = {i,0};
 		    uint8_t dmac[6] = {0,0,0,0,0,(uint8_t)(1+2*i)};
 		    struct action_fib_hit_nexthop_params param;
@@ -77,11 +91,11 @@ init_tables_v1(lookup_table_t** t)
 		    lpm_action_val.action_id = 1;	//action_fib_hit_nexthop
 		    lpm_action_val.fib_hit_nexthop_params = param;
 		    lpm_add(t[0],key,32,(uint8_t*)&lpm_action_val);
-    }	    
+    }
+    //print_lpm_tree(t[0]->table);     
 
     //set smac_rewrite table
     for (i=0; i<4; i++){
-		    //uint8_t* smac_value;
 		    uint8_t key[2] = {i,0};
 		    uint8_t smac[6] = {0,0,0,0,0,(uint8_t)(1+2*i)};
 		    struct action_rewrite_src_mac_params param;
@@ -90,7 +104,7 @@ init_tables_v1(lookup_table_t** t)
 		    action_val.action_id = 2; //action_rewrite_src_mac
 		    action_val.rewrite_src_mac_params = param;
 		    exact_add(t[1],key,(uint8_t*)&action_val);
-    }	        
+    }       
     
     return 0;
 }
@@ -101,8 +115,6 @@ p4_msg_digest_v1(lookup_table_t** t, char* name, int receiver, struct type_field
     printf("   ~~~executing p4_msg_digest_v1~~~   \n");
     return 0;
 }
-
-
 
 using namespace ns3;
 
@@ -135,6 +147,112 @@ SetTimeout (std::string value)
     }
   catch (...) { return false; }
   return false;
+}
+
+
+typedef std::pair<Ptr<Packet>, Ipv4Header> Ipv4PayloadHeaderPair;
+
+
+// This procedure will attempt to populate the ARP cache on every node.
+void
+PopulateArpCache ()
+{
+	Ptr<Packet> dummy = Create<Packet> ();
+	Ptr<ArpCache> arp = CreateObject<ArpCache> ();
+	arp->SetAliveTimeout (Seconds (3600 * 24 * 365));
+	// Populate ARP Cache with information from all nodes
+	for (NodeList::Iterator i = NodeList::Begin (); i != NodeList::End (); ++i)
+	{
+		Ptr<Ipv4L3Protocol> ip = (*i)->GetObject<Ipv4L3Protocol> ();
+		NS_ASSERT (ip != 0);
+		ObjectVectorValue interfaces;
+		ip->GetAttribute ("InterfaceList", interfaces);
+		for (ObjectVectorValue::Iterator j = interfaces.Begin (); j != interfaces.End (); j++)
+		{
+			Ptr<Ipv4Interface> ipIface = j->second->GetObject<Ipv4Interface> ();
+			NS_ASSERT (ipIface != 0);
+			Ptr<NetDevice> device = ipIface->GetDevice ();
+			NS_ASSERT (device != 0);
+			Mac48Address addr = Mac48Address::ConvertFrom(device->GetAddress ());
+			for (uint32_t k = 0; k < ipIface->GetNAddresses (); k ++)
+			{
+				Ipv4Address ipAddr = ipIface->GetAddress (k).GetLocal ();
+				if (ipAddr == Ipv4Address::GetLoopback ())
+				{
+					continue;
+				}
+				Ipv4Header ipHeader;
+				ArpCache::Entry *entry = arp->Add (ipAddr);
+				entry->MarkWaitReply (Ipv4PayloadHeaderPair(dummy,ipHeader));
+				entry->MarkAlive (addr);
+				entry->ClearPendingPacket();
+				entry->MarkPermanent ();
+			}
+		}
+	}
+	// Assign ARP Cache to each interface of each node
+	for (NodeList::Iterator i = NodeList::Begin (); i != NodeList::End (); ++i)
+	{
+		Ptr<Ipv4L3Protocol> ip = (*i)->GetObject<Ipv4L3Protocol> ();
+		NS_ASSERT (ip != 0);
+		ObjectVectorValue interfaces;
+		ip->GetAttribute ("InterfaceList", interfaces);
+		for (ObjectVectorValue::Iterator j = interfaces.Begin (); j != interfaces.End (); j ++)
+		{
+			Ptr<Ipv4Interface> ipIface = j->second->GetObject<Ipv4Interface> ();
+			ipIface->SetAttribute ("ArpCache", PointerValue (arp));
+		}
+	}
+}
+
+// This procedure will attempt to populate the ARP cache on the nodes passed as parameter.
+void
+SpoofArpCache(NodeContainer &terminals)
+{
+    Ptr<Packet> dummy = Create<Packet> ();
+	Ptr<ArpCache> arp = CreateObject<ArpCache> ();
+	arp->SetAliveTimeout (Seconds (3600 * 24 * 365));
+    for (NodeContainer::Iterator i = terminals.Begin (); i != terminals.End (); ++i)
+    {
+        Ptr<Ipv4L3Protocol> ip = (*i)->GetObject<Ipv4L3Protocol> ();
+        NS_ASSERT (ip != 0);
+        ObjectVectorValue interfaces;
+		ip->GetAttribute ("InterfaceList", interfaces);
+		for (ObjectVectorValue::Iterator j = interfaces.Begin (); j != interfaces.End (); j++)
+		{
+			Ptr<Ipv4Interface> ipIface = j->second->GetObject<Ipv4Interface> ();
+			NS_ASSERT (ipIface != 0);
+			Ptr<NetDevice> device = ipIface->GetDevice ();
+			NS_ASSERT (device != 0);
+			Mac48Address addr = Mac48Address::ConvertFrom(device->GetAddress ());
+			for (uint32_t k = 0; k < ipIface->GetNAddresses (); k ++)
+			{
+				Ipv4Address ipAddr = ipIface->GetAddress (k).GetLocal ();
+				if (ipAddr == Ipv4Address::GetLoopback ())
+				{
+					continue;
+				}
+				Ipv4Header ipHeader;
+				ArpCache::Entry *entry = arp->Add (ipAddr);
+				entry->MarkWaitReply (Ipv4PayloadHeaderPair(dummy,ipHeader));
+				entry->MarkAlive (addr);
+				entry->ClearPendingPacket();
+				entry->MarkPermanent ();
+			}
+		}
+    }
+    for (NodeContainer::Iterator i = terminals.Begin (); i != terminals.End (); ++i)
+    {
+        Ptr<Ipv4L3Protocol> ip = (*i)->GetObject<Ipv4L3Protocol> ();
+		NS_ASSERT (ip != 0);
+		ObjectVectorValue interfaces;
+		ip->GetAttribute ("InterfaceList", interfaces);
+		for (ObjectVectorValue::Iterator j = interfaces.Begin (); j != interfaces.End (); j ++)
+		{
+			Ptr<Ipv4Interface> ipIface = j->second->GetObject<Ipv4Interface> ();
+			ipIface->SetAttribute ("ArpCache", PointerValue (arp));
+		}
+    }  
 }
 
 int
@@ -180,11 +298,11 @@ main (int argc, char *argv[])
   NetDeviceContainer terminalDevices;
   NetDeviceContainer switchDevices;
   for (int i = 0; i < 4; i++)
-    {
-      NetDeviceContainer link = csma.Install (NodeContainer (terminals.Get (i), csmaSwitch));
-      terminalDevices.Add (link.Get (0));
-      switchDevices.Add (link.Get (1));
-    }
+  {
+    NetDeviceContainer link = csma.Install (NodeContainer (terminals.Get (i), csmaSwitch));
+    terminalDevices.Add (link.Get (0));
+    switchDevices.Add (link.Get (1));
+  }
 
 
 
@@ -194,6 +312,7 @@ main (int argc, char *argv[])
   
   swtch.Install(switchNode,switchDevices,init_tables_v1,p4_msg_digest_v1);
 
+  //swtch.AllowPacketDrop(false);
 
 
   // Add internet stack to the terminals
@@ -205,6 +324,14 @@ main (int argc, char *argv[])
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");
   ipv4.Assign (terminalDevices);
+  
+  
+  //ARP spoofing is necessary for this switch
+  //PopulateArpCache();
+  SpoofArpCache(terminals);
+  
+  
+  
 
   // Create an OnOff application to send UDP datagrams from n0 to n1.
   NS_LOG_INFO ("Create Applications.");

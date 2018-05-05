@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include "parser.h"
 #include "data_plane_data.h"
 #include "p4-interface-dependencies.h"
@@ -138,7 +139,7 @@ void lpm_add_promote    (int tableid, uint8_t* key, uint8_t depth, uint8_t* valu
 void ternary_add_promote(int tableid, uint8_t* key, uint8_t* mask, uint8_t* value);
 backend create_backend(int num_of_threads, int queue_size, char* controller_name, int controller_port, p4_msg_callback cb);
 void launch_backend(backend bg);
-uint16_t calculate_csum16(const void* buf, uint16_t length);
+uint16_t calculate_csum16(const void* buf, uint16_t len);
 
 
 #endif // P4_INTERFACE

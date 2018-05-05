@@ -23,7 +23,7 @@
 
  void apply_table_smac(packet_descriptor_t* pd, lookup_table_t** tables)// sugar@68
  {// sugar@69
-     printf("  :::: EXECUTING TABLE smac\n");// sugar@70
+     printf("  :::: executing table smac\n");// sugar@70
      uint8_t* key[6];// sugar@71
      table_smac_key(pd, (uint8_t*)key);// sugar@72
 
@@ -36,15 +36,15 @@
      }// sugar@82
      //printf("index == %d\n",index); //MODDED
      if(res == NULL) {// sugar@85
-       printf("    :: NO RESULT, NO DEFAULT ACTION.\n");// sugar@86
+       printf("    :: no result, no default action.\n");// sugar@86
      } else {// sugar@87
        switch (res->action_id) {// sugar@88
          case action_mac_learn:// sugar@90
-           printf("    :: EXECUTING ACTION mac_learn...\n");// sugar@91
+           printf("    :: executing action mac_learn...\n");// sugar@91
            action_code_mac_learn(pd, tables);// sugar@95
            break;// sugar@96
          case action__nop:// sugar@90
-           printf("    :: EXECUTING ACTION _nop...\n");// sugar@91
+           printf("    :: executing action _nop...\n");// sugar@91
            action_code__nop(pd, tables);// sugar@95
            break;// sugar@96
          default: printf("didnt find match for the action %d, doing nothing\n",res->action_id); break;//MODDED
@@ -62,14 +62,14 @@
          default: printf("didnt find match to the action %d, doing nothing\n",res->action_id); break;//MODDED
        }// sugar@116
      } else {// sugar@117
-       printf("    :: IGNORING PACKET.\n");// sugar@118
+       printf("    :: ignoring packet.\n");// sugar@118
        return;// sugar@119
      }// sugar@120
  }// sugar@121
 
  void apply_table_dmac(packet_descriptor_t* pd, lookup_table_t** tables)// sugar@68
  {// sugar@69
-     printf("  :::: EXECUTING TABLE dmac\n");// sugar@70
+     printf("  :::: executing table dmac\n");// sugar@70
      
      uint8_t* key[6];// sugar@71
      table_dmac_key(pd, (uint8_t*)key);// sugar@72
@@ -83,15 +83,15 @@
        index = *(int*)(value+sizeof(struct dmac_action));// sugar@79
      }// sugar@82
      if(res == NULL) {// sugar@85
-       printf("    :: NO RESULT, NO DEFAULT ACTION.\n");// sugar@86
+       printf("    :: no result, no default action.\n");// sugar@86
      } else {// sugar@87
        switch (res->action_id) {// sugar@88
          case action_forward:// sugar@90
-           printf("    :: EXECUTING ACTION forward...\n");// sugar@91
+           printf("    :: executing action forward...\n");// sugar@91
            action_code_forward(pd, tables, res->forward_params);// sugar@93
            break;// sugar@96
          case action_bcast:// sugar@90
-           printf("    :: EXECUTING ACTION bcast...\n");// sugar@91
+           printf("    :: executing action bcast...\n");// sugar@91
            action_code_bcast(pd, tables);// sugar@95
            break;// sugar@96
            
@@ -110,7 +110,7 @@
          default: printf("didnt find match to the action %d, doing nothing\n",res->action_id); break;//MODDED  
        }// sugar@116
      } else {// sugar@117
-       printf("    :: IGNORING PACKET.\n");// sugar@118
+       printf("    :: ignoring packet.\n");// sugar@118
        return;// sugar@119
      }// sugar@120
  }// sugar@121
@@ -173,7 +173,7 @@
  {// sugar@323
      int value32;// sugar@324
      EXTRACT_INT32_BITS(pd, field_instance_standard_metadata_ingress_port, value32)// sugar@325
-     printf("### HANDLING PACKET ARRIVING AT PORT %" PRIu32 "...\n", value32);// sugar@326
+     printf("Handling packet arriving at port %" PRIu32 ".\n", value32);// sugar@326
      //reset_headers(pd);
      parse_packet(pd, tables);// sugar@328
      update_packet(pd);// sugar@329

@@ -24,6 +24,8 @@ void action_code_on_miss(packet_descriptor_t* pd, lookup_table_t** tables )
 
 void action_code_fib_hit_nexthop(packet_descriptor_t* pd, lookup_table_t** tables , struct action_fib_hit_nexthop_params parameters) {
 
+		//printf("----------------> Inside action_code_fib_hit_nexthop\n");
+
 		uint32_t value32, res32, mask32;
 		(void)value32; (void)res32; (void)mask32;
 		

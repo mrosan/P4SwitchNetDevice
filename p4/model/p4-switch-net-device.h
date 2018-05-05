@@ -104,7 +104,7 @@ public:
    * \param mtu Maximum transmission unit.
    * \return 0 if everything's ok, otherwise an error number.
    */
-  int HandlePacket (Ptr<const Packet> packet, const Address& src, const Address& dst, int inport, uint16_t protocol, uint16_t mtu);
+  int HandlePacket ( Ptr<const Packet> packet, const Address& src, const Address& dst, int inport, uint16_t protocol, uint16_t mtu );
   
   
   /**
@@ -120,9 +120,14 @@ public:
    * \param protocol The protocol defining the Packet.
    * \param mtu Maximum transmission unit.
    */
-  void BufferFromPacket (packet_descriptor_t* pd, Ptr<const Packet> constPacket, const Address& src, const Address& dst, uint16_t protocol, uint16_t mtu);
+  void BufferFromPacket ( packet_descriptor_t* pd, Ptr<const Packet> constPacket, const Address& src, const Address& dst, uint16_t protocol, uint16_t mtu );
   
-  
+  /**
+   * This method sets whether the "dropped" field of the packet_descriptor_t should be disregarded or not.
+   *
+   * \param allowDrop If set to true, the P4 switch will be expected to set the packet descriptor's dropped field. 
+   */
+  void SetPacketDrop( bool allowDrop );
   
   // From NetDevice
   virtual void SetIfIndex (const uint32_t index);
@@ -159,6 +164,7 @@ private:
   Ptr<BridgeChannel> m_channel;           ///< Collection of port channels into the Switch Channel.
   uint32_t m_ifIndex;                     ///< Interface Index.
   uint16_t m_mtu;                         ///< Maximum Transmission Unit.
+  bool m_drop;                            ///< Consider the packet descriptor's dropped field.
   
   typedef std::pair<Ptr<NetDevice>,int> Port_t;
   std::vector<Port_t> m_ports;            ///< Switch's ports.

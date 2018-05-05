@@ -33,6 +33,7 @@ P4SwitchNetDevice::P4SwitchNetDevice ()
   m_tables = new lookup_table_t*[NB_TABLES];
   create_tables(m_tables);
   
+  m_drop = false;
 }
 
 P4SwitchNetDevice::~P4SwitchNetDevice ()
@@ -147,10 +148,10 @@ P4SwitchNetDevice::ReceiveFromDevice (Ptr<NetDevice> netdev, Ptr<const Packet> p
 int
 P4SwitchNetDevice::HandlePacket(Ptr<const Packet> packet, const Address& src, const Address& dst, int inport, uint16_t protocol, uint16_t mtu){
 /*
-  // For testing purposes:
-  printf("\n-----------------------The content of the packet ---------------------------\n");
+  //For testing purposes:
+  std::cout << "\n-----------------------The content of the packet ---------------------------\n";
   std::cout << packet->ToString() << std::endl;
-  printf("----------------------------------------------------------------------------\n\n");
+  std::cout << "----------------------------------------------------------------------------\n\n";
 */
 
   //initialize packet buffer and dataplane
@@ -162,54 +163,53 @@ P4SwitchNetDevice::HandlePacket(Ptr<const Packet> packet, const Address& src, co
   initialize(pd, inport);
     
   //set the global "backend" variable that the p4 code uses
-	set_fake_backend(m_tables,m_digest);
+  set_fake_backend(m_tables,m_digest);
 
   //let the P4 code handle the packet
   handle_packet(pd, m_tables);
  
-  /*
-  if (pd->dropped) {
-      printf("  :::: pd->dropped is true.\n");
-  }  
-  */
-      
-  //get the result port address
-  int port = get_outport(pd);     
   
-  //send the packet through the appropriate port
-  //if broadcast, send everywhere except 'inport'
-  if (port == BROADCAST_PORT)
+  if (m_drop && pd->dropped)
   {
-    for (size_t i = 0; i < m_ports.size (); i++)
-    {
-      if (m_ports[i].second != inport) 
-      {
-        NS_LOG_INFO ("(broadcast) Sending packet " << packet->GetUid () << " over port " << i);
-        m_ports[i].first->SendFrom(packet->Copy (),src,dst,protocol);
-      }
-    }
+      NS_LOG_INFO ("Packet dropped. (pd->dropped is set to true)");
   } else
   {
-    bool found = false;
-    size_t i = 0;
-    while ( !found && i < m_ports.size () )
-    {
-      if (m_ports[i].second == port)
+      //get the result port address
+      int port = get_outport(pd);     
+      
+      //send the packet through the appropriate port
+      //if broadcast, send everywhere except 'inport'
+      if (port == BROADCAST_PORT)
       {
-          NS_LOG_INFO ("Sending packet " << packet->GetUid () << " over port " << port <<".");
-          m_ports[i].first->SendFrom(packet->Copy (),src,dst,protocol);
-          found = true;
+        for (size_t i = 0; i < m_ports.size (); i++)
+        {
+          if (m_ports[i].second != inport) 
+          {
+            NS_LOG_INFO ("(broadcast) Sending packet " << packet->GetUid () << " over port " << i);
+            m_ports[i].first->SendFrom(packet->Copy (),src,dst,protocol);
+          }
+        }
+      } else
+      {
+        bool found = false;
+        size_t i = 0;
+        while ( !found && i < m_ports.size () )
+        {
+          if (m_ports[i].second == port)
+          {
+              NS_LOG_INFO ("Sending packet " << packet->GetUid () << " over port " << port <<".");
+              m_ports[i].first->SendFrom(packet->Copy (),src,dst,protocol);
+              found = true;
+          }
+          i++;
+        }
+        if (!found)
+        {
+          NS_LOG_ERROR("ERROR: The port number received from the lookup doesn't exist.");
+          return 1;
+        }
       }
-      i++;
-    }
-    if (!found)
-    {
-      NS_LOG_ERROR("ERROR: The port number received from the lookup doesn't exist.");
-      return 1;
-    }
-    
   }
-
   delete pd->data;
   delete pd;
   
@@ -220,6 +220,7 @@ void
 P4SwitchNetDevice::BufferFromPacket (packet_descriptor_t* pd, Ptr<const Packet> constPacket, const Address& src, const Address& dst, uint16_t protocol, uint16_t mtu)
 {
   NS_LOG_INFO ("Creating P4 buffer from packet.");
+  //printf("The protocol (EtherType) of this packet is: \n"); print_key((uint8_t*)&protocol, 2);
 
   Ptr<Packet> packet = constPacket->Copy ();
   Mac48Address src48 = Mac48Address::ConvertFrom (src);
@@ -228,27 +229,36 @@ P4SwitchNetDevice::BufferFromPacket (packet_descriptor_t* pd, Ptr<const Packet> 
   src48.CopyTo(srcBuf);
   uint8_t dstBuf[6]; 
   dst48.CopyTo(dstBuf);
-  
-  //size_t s = packet->GetSize (); //instead of mtu
-  //std::cout << "Maximum Transmission Unit: " << mtu << ", Packet's size: " << s << std::endl;
-  
-  uint8_t dataBuf[mtu];
-  packet->Serialize (dataBuf, mtu);
-  /*
-  if ( packet->Serialize (dataBuf, mtu) )
-  {
-    NS_LOG_INFO ("Serialize successful!");
-  } else {
-    NS_LOG_ERROR "Serialize unsuccessful!");
-  }
-  */
-  size_t size = 2 * ETH_ADDR_LEN + ETH_TYPE_LEN + mtu;
+
+  size_t s = packet->GetSize ();  
+  uint8_t dataBuf[s];
+  packet->CopyData ((uint8_t*)&dataBuf, s);
+
+  size_t size = 2 * ETH_ADDR_LEN + ETH_TYPE_LEN + s;
   pd->data = new uint8_t[size];
  
+  //copying destination MAC address
   memcpy(pd->data,dstBuf,ETH_ADDR_LEN);
+  //copying source MAC address
   memcpy(pd->data + ETH_ADDR_LEN,srcBuf,ETH_ADDR_LEN);
-  memcpy(pd->data + 2*ETH_ADDR_LEN,&protocol,ETH_TYPE_LEN);
-  memcpy(pd->data + 2*ETH_ADDR_LEN + ETH_TYPE_LEN,dataBuf,mtu);
+  
+  //the protocol is in reverse byteorder compared to EtherType, so extra steps are necessary:
+  //memcpy(pd->data + 2*ETH_ADDR_LEN,&protocol,ETH_TYPE_LEN);
+  memcpy(pd->data + 2*ETH_ADDR_LEN,(uint8_t*)&protocol+1,1);
+  memcpy(pd->data + 2*ETH_ADDR_LEN+1,(uint8_t*)&protocol,1);
+  
+  memcpy(pd->data + 2*ETH_ADDR_LEN + ETH_TYPE_LEN,(uint8_t*)&dataBuf,s);  
+  
+  //For testing purposes:
+  //printf("Print dataBuf: "); print_key((uint8_t*)&dataBuf,s);
+  
+  //possible improvement: check for VLAN tag (0x8100 EtherType value) and handle header accordingly (+4 bytes)
+}
+
+void
+P4SwitchNetDevice::SetPacketDrop( bool allowDrop )
+{
+    m_drop = allowDrop;
 }
 
 

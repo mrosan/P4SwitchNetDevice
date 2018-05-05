@@ -37,64 +37,82 @@
      pd->headers[header_instance_ethernet].pointer = buf;// sugar@83
  }// sugar@90
  
- static void// sugar@81
- extract_header_ipv4(uint8_t* buf, packet_descriptor_t* pd) {// sugar@82
-     pd->headers[header_instance_ipv4].pointer = buf;// sugar@83
- }// sugar@90
+ static void
+ extract_header_ipv4(uint8_t* buf, packet_descriptor_t* pd) {
+ 	//reset_headers (called by init_dataplane) initialized this as null earlier
+     pd->headers[header_instance_ipv4].pointer = buf;
+ }
  
  static void parse_state_start(packet_descriptor_t* pd, uint8_t* buf, lookup_table_t** tables);// sugar@94
  static void parse_state_parse_ethernet(packet_descriptor_t* pd, uint8_t* buf, lookup_table_t** tables);// sugar@94
  static void parse_state_parse_ipv4(packet_descriptor_t* pd, uint8_t* buf, lookup_table_t** tables);// sugar@94
 
- static inline void build_key_parse_ethernet(packet_descriptor_t *pd, uint8_t *buf, uint8_t *key) {// sugar@100
- EXTRACT_INT32_BITS(pd, field_instance_ethernet_etherType, *(uint32_t*)key)// sugar@109
- key += sizeof(uint32_t);// sugar@110
- }// sugar@119
- static void parse_state_start(packet_descriptor_t* pd, uint8_t* buf, lookup_table_t** tables)// sugar@122
- {// sugar@123
-     uint32_t value32;// sugar@124
-     (void)value32;// sugar@125
-  return parse_state_parse_ethernet(pd, buf, tables);// sugar@21
-// sugar@154
- }// sugar@189
+ static inline void build_key_parse_ethernet(packet_descriptor_t *pd, uint8_t *buf, uint8_t *key) {
+ 	EXTRACT_INT32_BITS(pd, field_instance_ethernet_etherType, *(uint32_t*)key)
+ 	key += sizeof(uint32_t);
+ }
  
- static void parse_state_parse_ethernet(packet_descriptor_t* pd, uint8_t* buf, lookup_table_t** tables)// sugar@122
- {// sugar@123
-     uint32_t value32;// sugar@124
-     (void)value32;// sugar@125
-     extract_header_ethernet(buf, pd);// sugar@130
-     buf += pd->headers[header_instance_ethernet].length;// sugar@131
- uint8_t key[2];// sugar@157
- build_key_parse_ethernet(pd, buf, key);// sugar@158
-     uint8_t case_value_0[2] = {// sugar@171
-         8,// sugar@173
-         0,// sugar@173
-     };// sugar@174
-     if ( memcmp(key, case_value_0, 2) == 0)// sugar@175
-          return parse_state_parse_ipv4(pd, buf, tables);// sugar@21
-// sugar@176
-  {// sugar@25
-   if(verify_packet(pd)) p4_pe_checksum(pd);// sugar@26
-   return apply_table_ipv4_fib_lpm(pd, tables);// sugar@27
- }// sugar@28
-// sugar@166
- }// sugar@189
+ static void parse_state_start(packet_descriptor_t* pd, uint8_t* buf, lookup_table_t** tables)
+ {
+    uint32_t value32;
+    (void)value32;
+  	return parse_state_parse_ethernet(pd, buf, tables);
+
+ }
+ 
+ static void parse_state_parse_ethernet(packet_descriptor_t* pd, uint8_t* buf, lookup_table_t** tables)
+ {
+     uint32_t value32;
+     (void)value32;
+     // buf is basically pd->data, this one sets the "pointer" on the ethernet header
+     extract_header_ethernet(buf, pd);
+     //then skips 14 bytes (6+6+2)
+     buf += pd->headers[header_instance_ethernet].length;
+ 	 uint8_t key[2];
+ 	 build_key_parse_ethernet(pd, buf, key);
+
+     uint8_t case_value_0[2] = {
+         8,
+         0,
+     };
+     
+     if ( memcmp(key, case_value_0, 2) == 0){
+		 return parse_state_parse_ipv4(pd, buf, tables);
+	}
+	
+	{
+	if(verify_packet(pd)) p4_pe_checksum(pd);
+	
+	//in case of ARP, the switch would need to have another action instead of the one below
+	return apply_table_ipv4_fib_lpm(pd, tables);
+	}
+
+ }
  
  static void parse_state_parse_ipv4(packet_descriptor_t* pd, uint8_t* buf, lookup_table_t** tables)// sugar@122
- {// sugar@123
-     uint32_t value32;// sugar@124
-     (void)value32;// sugar@125
-     extract_header_ipv4(buf, pd);// sugar@130
-     buf += pd->headers[header_instance_ipv4].length;// sugar@131
- EXTRACT_INT32_AUTO(pd, field_instance_ipv4_ttl, value32)// sugar@135
- pd->fields.field_instance_ipv4_ttl = value32;// sugar@136
- pd->fields.attr_field_instance_ipv4_ttl = 0;// sugar@137
-  {// sugar@25
-   if(verify_packet(pd)) p4_pe_checksum(pd);// sugar@26
-   return apply_table_ipv4_fib_lpm(pd, tables);// sugar@27
- }// sugar@28
-// sugar@154
- }// sugar@189
+ {
+    uint32_t value32;
+    (void)value32;
+    
+    //the line below does this: pd->headers[header_instance_ipv4].pointer = buf;
+    //buf is basically pd->data without the ethernet header
+    extract_header_ipv4(buf, pd);
+    
+    //jumps over the ipv4 header
+    buf += pd->headers[header_instance_ipv4].length;
+    
+    //extracts the rest of the package
+ 	EXTRACT_INT32_AUTO(pd, field_instance_ipv4_ttl, value32)
+ 	
+ 	pd->fields.field_instance_ipv4_ttl = value32;
+ 	pd->fields.attr_field_instance_ipv4_ttl = 0;
+ 	
+  	{
+	if(verify_packet(pd)) p4_pe_checksum(pd);
+	return apply_table_ipv4_fib_lpm(pd, tables);
+ 	}
+
+ }
  
  void parse_packet(packet_descriptor_t* pd, lookup_table_t** tables) {// sugar@192
      parse_state_start(pd, pd->data, tables);// sugar@193
