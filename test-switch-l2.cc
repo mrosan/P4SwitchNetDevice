@@ -189,14 +189,10 @@ main (int argc, char *argv[])
       switchDevices.Add (link.Get (1));
     }
 
-
-
   // Create the switch netdevice, which will do the packet switching
   Ptr<Node> switchNode = csmaSwitch.Get (0);
-  P4SwitchHelper swtch;
-  
+  P4SwitchHelper swtch; 
   swtch.Install(switchNode,switchDevices,init_tables_v1,p4_msg_digest_v1);
-
 
 
   // Add internet stack to the terminals
@@ -220,7 +216,6 @@ main (int argc, char *argv[])
   ApplicationContainer app = onoff.Install (terminals.Get (0));
   // Start the application
   app.Start (Seconds (1.0));
-  //app.Stop (Seconds (2.0));
   app.Stop (Seconds (1.4));
 
   // Create an optional packet sink to receive these packets
@@ -236,7 +231,6 @@ main (int argc, char *argv[])
                       AddressValue (InetSocketAddress (Ipv4Address ("10.1.1.1"), port)));
   app = onoff.Install (terminals.Get (3));
   app.Start (Seconds (1.1));
-  //app.Stop (Seconds (2.0));
   app.Stop (Seconds (1.4));
 
   app = sink.Install (terminals.Get (0));

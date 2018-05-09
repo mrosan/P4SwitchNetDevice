@@ -1,6 +1,4 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-
-
 #include "p4-switch-helper.h"
 #include "ns3/p4-switch-net-device.h"
 #include "ns3/log.h"
@@ -32,20 +30,6 @@ P4SwitchHelper::Install (Ptr<Node> node, NetDeviceContainer c, int (*init_tables
 
   NetDeviceContainer devs;
   
-  /* 
-  //old implementation
-  m_device = new P4SwitchNetDevice ();
-  devs.Add (m_device);
-  node->AddDevice (m_device);
-  
-  for (NetDeviceContainer::Iterator i = c.Begin (); i != c.End (); ++i)
-    {
-      NS_LOG_INFO ("**** Add SwitchPort " << *i);
-      m_device->AddSwitchPort (*i);
-    }
-  */
-  
-  
   Ptr<P4SwitchNetDevice> dev = m_deviceFactory.Create<P4SwitchNetDevice> ();
   devs.Add (dev);
   node->AddDevice (dev);
@@ -57,9 +41,15 @@ P4SwitchHelper::Install (Ptr<Node> node, NetDeviceContainer c, int (*init_tables
     }
   
   dev->SetCallbackFunctions(init_tables_callback, p4_msg_digest_callback);
+  m_device = dev;
     
   return devs;
 }
 
-
+void
+P4SwitchHelper::AllowPacketDrop ( bool allowed )
+{
+    m_device->SetPacketDrop(allowed);
 }
+
+}//ns3 namespace

@@ -33,10 +33,17 @@ public:
                                 int (*init_tables_callback)(lookup_table_t**), 
                                 int (*p4_msg_digest_callback)(lookup_table_t** t, char* name, int receiver, struct type_field_list* digest_field_list));
   
+  
+  /**
+   * This method sets whether the "dropped" field of the packet_descriptor_t should be disregarded or not.
+   *
+   * \param allowed If set to true, the P4SwitchNetDevice will expect the P4 switch to set the packet descriptor's dropped field. 
+   */
+  void AllowPacketDrop ( bool allowed );
 
 private:
   ObjectFactory m_deviceFactory;
-  //Ptr<P4SwitchNetDevice> m_device;
+  Ptr<P4SwitchNetDevice> m_device;
   int m_mtu;
 
 };

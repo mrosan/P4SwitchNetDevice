@@ -254,18 +254,6 @@ init_tables_v1(lookup_table_t** t)
     uint8_t mask4[6] = {255,0,255,255,255,255};
     uint8_t mask5[6] = {0,0,0,255,0,0};
     
-    /*
-    uint8_t key1[6] = {10,1,1,1,0,0};
-    uint8_t key2[6] = {10,1,1,0,0,0};
-    uint8_t key3[6] = {10,1,1,2,0,0};
-    uint8_t key4[6] = {10,1,0,0,0,0};
-    uint8_t key5[6] = {45,1,45,1,0,0};
-    uint8_t key6[6] = {0,0,1,1,0,0};
-    uint8_t key7[6] = {60,0,1,1,0,0};
-    uint8_t key8[6] = {45,1,45,0,0,0};
-    uint8_t key9[6] = {45,1,45,2,0,0};
-    uint8_t key10[6] = {45,1,45,1,5,0};*/
-    
     printf("\n-------> adding key {10,1,1,1,0,0} with mask {0,0,0,255,0,0}\n");
     ternary_add(t[0],key1,mask5,(uint8_t*)&test_smac);
     printf("\n-------> adding key {10,1,1,2,0,0} with mask {0,0,0,255,0,0}\n");

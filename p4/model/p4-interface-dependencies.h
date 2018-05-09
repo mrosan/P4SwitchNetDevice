@@ -1,12 +1,12 @@
 #ifndef P4_INTERFACE_DEP
 #define P4_INTERFACE_DEP
 
-// This header contains copy-pasted declarations and macros mostly from dpdk files,
-// leaving the most-used parts in P4-interface.h (which is thus much more readable).
+// This header contains copy-pasted declarations and macros mostly from 
+// t4p4s compiler's hardware dependent files, and DPDK files.
+// However, the most relevant parts are in p4-interface.h.
 
 /* ############################################################################# */
 /* ########################## copied from dataplane.h ########################## */
-
 #define LOOKUP_EXACT   0
 #define LOOKUP_LPM     1
 #define LOOKUP_TERNARY 2

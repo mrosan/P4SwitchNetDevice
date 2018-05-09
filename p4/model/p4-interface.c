@@ -255,7 +255,7 @@ ternary_add (lookup_table_t* t, uint8_t* key, uint8_t* mask, uint8_t* value)
 		if ( c != 0 ) {
 			p = p->next;
 		} else {
-			printf("~~~ ternary_add: key already exists, overwriting value ~~~\n");
+			//printf("~~~ ternary_add: key already exists, overwriting value ~~~\n");
 			free(p->value);
 			p->value = (uint8_t*)malloc(t->val_size);
 			memcpy(p->value, value, t->val_size);
@@ -340,13 +340,13 @@ lpm_lookup (lookup_table_t* t, uint8_t* key)
 		int d = *(s->mask); // mask at lpm trees is only a number
 		int c = compare_keys(s->key,key,d);
 		if ( c < 0 ) {
-			printf("   ::: lpm_lookup: searching for a match at depth %d for key ", d); print_key(key,d);
+			//printf("   ::: lpm_lookup: searching for a match at depth %d for key ", d); print_key(key,d);
 			s = s->next;
 		} else if ( c > 0 ) {
-			printf("   ::: lpm_lookup: no match exists at depth %d for key ", d); print_key(key,d);
+			//printf("   ::: lpm_lookup: no match exists at depth %d for key ", d); print_key(key,d);
 			s = NULL;
 		} else {
-			printf("   ::: lpm_lookup: matching entry at depth %d for key ", d); print_key(key,d);
+			//printf("   ::: lpm_lookup: matching entry at depth %d for key ", d); print_key(key,d);
 			if (s->value) {
 				res = s->value;
 				printf("   ::: lpm_lookup: found value %d belonging to this entry \n", *s->value);
@@ -403,9 +403,10 @@ ternary_lookup (lookup_table_t* t, uint8_t* key)
 int
 exact_remove (lookup_table_t* t, uint8_t* key)
 {
+	printf("Performing exact_remove with key "); print_key(key,t->key_size);
+	
 	table_entry_t* s = t->table;
 	table_entry_t* q = NULL;
-
 	while ( s ) {
 		int c = compare_keys(key,s->key,t->key_size);
 		if ( c < 0 ) {
@@ -436,6 +437,8 @@ exact_remove (lookup_table_t* t, uint8_t* key)
 int
 lpm_remove (lookup_table_t* t, uint8_t* key, uint8_t prefix_length)
 {
+	printf("Performing lpm_remove with key "); print_key(key,t->key_size);
+	
 	uint8_t depth = prefix_length/8;
 	if ( 0 < depth && depth <= t->key_size ) {
 		table_entry_t* s = t->table;
@@ -491,6 +494,8 @@ lpm_remove (lookup_table_t* t, uint8_t* key, uint8_t prefix_length)
 int
 ternary_remove (lookup_table_t* t, uint8_t* key)
 {
+	printf("Performing ternary_remove with key "); print_key(key,t->key_size);
+
 	table_entry_t* s = t->table;
 	table_entry_t* q = NULL;
 	while ( s ) {

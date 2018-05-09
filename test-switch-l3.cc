@@ -308,10 +308,8 @@ main (int argc, char *argv[])
 
   // Create the switch netdevice, which will do the packet switching
   Ptr<Node> switchNode = csmaSwitch.Get (0);
-  P4SwitchHelper swtch;
-  
+  P4SwitchHelper swtch; 
   swtch.Install(switchNode,switchDevices,init_tables_v1,p4_msg_digest_v1);
-
   //swtch.AllowPacketDrop(false);
 
 
@@ -323,15 +321,11 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("Assign IP Addresses.");
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");
-  ipv4.Assign (terminalDevices);
-  
+  ipv4.Assign (terminalDevices);  
   
   //ARP spoofing is necessary for this switch
   //PopulateArpCache();
   SpoofArpCache(terminals);
-  
-  
-  
 
   // Create an OnOff application to send UDP datagrams from n0 to n1.
   NS_LOG_INFO ("Create Applications.");
@@ -344,7 +338,6 @@ main (int argc, char *argv[])
   ApplicationContainer app = onoff.Install (terminals.Get (0));
   // Start the application
   app.Start (Seconds (1.0));
-  //app.Stop (Seconds (2.0));
   app.Stop (Seconds (1.4));
 
   // Create an optional packet sink to receive these packets
@@ -360,7 +353,6 @@ main (int argc, char *argv[])
                       AddressValue (InetSocketAddress (Ipv4Address ("10.1.1.1"), port)));
   app = onoff.Install (terminals.Get (3));
   app.Start (Seconds (1.1));
-  //app.Stop (Seconds (2.0));
   app.Stop (Seconds (1.4));
 
   app = sink.Install (terminals.Get (0));
