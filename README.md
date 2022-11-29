@@ -2,9 +2,9 @@
 NS-3 module for handling P4 switches. This was my thesis for my BSc Computer Science degree.
 
 ## Documentation
-The full documentation in Hungarian can be found [here](./documentation/Szakdolgozat_dokumentacio.pdf).
+The full documentation in Hungarian can be found [here](https://drive.google.com/file/d/1iV34JJ5qd62BMh0accI9HmuBa2RH48DV/view?usp=share_link).
 
-The translated English summary of it can be found [here](./documentation/Thesis_documentation.pdf).
+The translated English summary of it can be found [here](https://drive.google.com/file/d/1jr9_WINsjhI1O8X6M8L4vOUMZuvSNlgt/view?usp=share_link).
 
 ## Content overview
  - p4 - the folder containing the module's files (P4SwitchNetDevice and its interface)
